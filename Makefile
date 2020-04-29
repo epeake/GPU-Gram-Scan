@@ -6,7 +6,7 @@ all: test
 test: test.o
 	g++ -o $@ $^
 
-%.o: %.cpp test.h
+%.o: %.cc gpu_gram_scan.h
 	g++ $(CFLAGS) -c -o $@ $<
 
 .PHONY: clean
