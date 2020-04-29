@@ -16,5 +16,12 @@ int main() {
   p2.x = 1;
   p2.y = 1;
 
-  cout <<p2.PolarAngle(p1) << "polar angle: p2 -> p1 \n";
+  cout << "polar angle: p2 -> p1 " << p2.PolarAngle(p1) <<  "\n";
+
+  Point<int> p3;
+  p2.x = 2;
+  p2.y = 1;
+  
+  cout << "non left turn: " << p1.NonLeftTurn(p3,p2) << "\n";
+  cout << "non left turn: " << p1.NonLeftTurn(p2,p3) << "\n";
 }
