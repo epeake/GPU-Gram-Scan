@@ -1,2 +1,2 @@
 # GPU-Gram-Scan
-GPU Accellerated Gram Scan
+GPU Accelerated Gram Scan

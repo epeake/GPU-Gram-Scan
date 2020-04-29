@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <cmath> // trig functions, pow
 
 using std::string;
 using std::vector;
@@ -15,12 +16,22 @@ using std::ifstream;
 
 namespace gpu_gram_scan {
 
+
 /*
  * Cartesian Coordinate Point
  */
 template <class Num_Type> struct Point {
   Num_Type x;
   Num_Type y;
+  
+  float PolarAngle(Point p){
+    float x_diff = p.x - x;
+    float y_diff = p.y - y;
+
+    float hypotenuse = hypotf(x_diff, y_diff);
+
+    return acos(x_diff/hypotenuse);
+  }
 };
 
 /*

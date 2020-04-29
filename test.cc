@@ -11,4 +11,10 @@ int main() {
 
   PointFileReader<int> test("test-data/test1.in");
   cout << test.GetMinYPoint().x << ' ' << test.GetMinYPoint().y << '\n';
+
+  Point<int> p2;
+  p2.x = 1;
+  p2.y = 1;
+
+  cout <<p2.PolarAngle(p1) << "polar angle: p2 -> p1 \n";
 }
