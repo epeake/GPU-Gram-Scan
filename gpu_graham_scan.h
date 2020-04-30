@@ -15,6 +15,7 @@ using std::ifstream;
 
 namespace gpu_graham_scan {
 
+const float kPI = 4 * atan(1);
 
 /*
  * Cartesian Coordinate Point
@@ -22,43 +23,19 @@ namespace gpu_graham_scan {
 template <class Num_Type> struct Point {
   Num_Type x;
   Num_Type y;
-  
-  // calculate polar angles between two points
-  // parallel to x-axis is 0
-  float PolarAngle(Point p) const {
-    float x_diff = p.x - x;
-    float y_diff = p.y - y;
-
-    float hypotenuse = hypotf(x_diff, y_diff);
-    return acos(x_diff/hypotenuse); // use cosine so the function is always defined
-  }
-
-  // does the ordering self, p1, p2 create a non-left turn
-  bool NonLeftTurn(Point p1, Point p2) const {
-    float Pi = 4*atan(1); // calc pi
-    
-    float firstAngle = PolarAngle(p1);
-    float secondAngle = PolarAngle(p2);
-
-    if(abs(firstAngle - secondAngle) < Pi){
-      return secondAngle > firstAngle;
-    } else {
-      return firstAngle > secondAngle;
-    }
-  }
 };
 
 /*
  * Used to read in a file of Point to be stored
  * as a vector.
  */
-template <class Num_Type> class PointFileReader {
+template <class Num_Type> class GrahamScanSerial {
   public:
 
     /*
      * Constructor reads through the file, populating points_ and idx_min_y_
      */
-    PointFileReader(const char * filename) : filename_(filename) {
+    GrahamScanSerial(const char * filename) : filename_(filename) {
       string curr_line;
       ifstream infile;
       int idx = 0;
@@ -111,7 +88,7 @@ template <class Num_Type> class PointFileReader {
       }
     };
 
-    ~PointFileReader() { delete[] points_; }
+    ~GrahamScanSerial() { delete[] points_; }
 
     /*
      * filename of points to be read in
@@ -132,9 +109,43 @@ template <class Num_Type> class PointFileReader {
     Point<Num_Type> GetMinYPoint() {
       return points_[idx_min_y_];
     };
+
+
+  /* 
+   * calculate polar angles between two points
+   * parallel to x-axis is 0
+   * 
+   * args:
+   * returns:
+   */
+  float PolarAngle(Point<Num_Type> p0, Point<Num_Type> p1) const {
+    float x_diff = p1.x - p0.x;
+    float y_diff = p1.y - p0.y;
+
+    float hypotenuse = hypotf(x_diff, y_diff);
+    return acos(x_diff/hypotenuse); // use cosine so the function is always defined
+  }
+
+
+  /* 
+   * does the ordering self, p1, p2 create a non-left turn
+   * 
+   * args:
+   * returns:
+   */
+  bool NonLeftTurn(Point<Num_Type> p0, Point<Num_Type> p1, Point<Num_Type> p2) const {
+    float firstAngle = PolarAngle(p0, p1);
+    float secondAngle = PolarAngle(p0, p2);
+
+    if (abs(firstAngle - secondAngle) < kPI) {
+      return secondAngle <= firstAngle;
+    } else {
+      return firstAngle <= secondAngle;
+    }
+  }
   
   private:
-    PointFileReader(void);
+    GrahamScanSerial(void);
 };
 
 } // gpu_graham_scan
