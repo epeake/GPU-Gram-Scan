@@ -1,10 +1,9 @@
 #pragma once
 
-#ifndef _GPU_Gram_Scan_
-#define _GPU_Gram_Scan_
+#ifndef _GPU_Graham_Scan_
+#define _GPU_Graham_Scan_
 
 #include <errno.h>
-#include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -14,7 +13,7 @@ using std::string;
 using std::vector;
 using std::ifstream;
 
-namespace gpu_gram_scan {
+namespace gpu_graham_scan {
 
 
 /*
@@ -46,7 +45,6 @@ template <class Num_Type> struct Point {
     } else {
       return firstAngle > secondAngle;
     }
-
   }
 };
 
@@ -71,6 +69,15 @@ template <class Num_Type> class PointFileReader {
         exit(EXIT_FAILURE);
       }
       
+      // get number of points
+      getline(infile, curr_line);
+      if (infile.fail()) {
+        perror("getline");
+        exit(EXIT_FAILURE);
+      }
+
+      points_ = new Point<Num_Type>[stoi(curr_line)];
+
       // process each line individually of the file
       while (!infile.eof()) {
         getline(infile, curr_line);
@@ -82,9 +89,9 @@ template <class Num_Type> class PointFileReader {
         string first_num = curr_line.substr(0, comma);
         string second_num = curr_line.substr(comma + 1, curr_line.length());
 
-        Point<int> current_point;
-        current_point.x = stoi(first_num);
-        current_point.y = stoi(second_num);
+        Point<Num_Type> current_point;
+        current_point.x = (Num_Type) stod(first_num);
+        current_point.y = (Num_Type) stod(second_num);
 
         // update the current minumim point's index
         if (idx == 0
@@ -93,7 +100,7 @@ template <class Num_Type> class PointFileReader {
           idx_min_y_ = idx;
         }
 
-        points_.push_back(current_point);
+        points_[idx] = current_point;
         idx++;
       }
 
@@ -103,6 +110,8 @@ template <class Num_Type> class PointFileReader {
           exit(EXIT_FAILURE);
       }
     };
+
+    ~PointFileReader() { delete[] points_; }
 
     /*
      * filename of points to be read in
@@ -117,7 +126,7 @@ template <class Num_Type> class PointFileReader {
     /*
      * all of our points from the file
      */
-    vector< Point<Num_Type> > points_;
+    Point<Num_Type> * points_;
 
     
     Point<Num_Type> GetMinYPoint() {
@@ -128,6 +137,6 @@ template <class Num_Type> class PointFileReader {
     PointFileReader(void);
 };
 
-} // gpu_gram_scan
+} // gpu_graham_scan
 
-#endif // _GPU_Gram_Scan_
+#endif // _GPU_Graham_Scan_
