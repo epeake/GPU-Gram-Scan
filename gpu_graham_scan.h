@@ -91,8 +91,8 @@ template <class Num_Type> class GrahamScanSerial {
           string second_num = curr_line.substr(comma + 1, curr_line.length());
 
           Point<Num_Type> current_point;
-          current_point.x = (Num_Type) stod(first_num);
-          current_point.y = (Num_Type) stod(second_num);
+          current_point.x = static_cast<Num_Type>(stod(first_num));
+          current_point.y = static_cast<Num_Type>(stod(second_num));
 
           // update the current minumim point's index
           if (idx == 0
