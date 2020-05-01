@@ -149,39 +149,38 @@ template <class Num_Type> class GrahamScanSerial {
       return points_[idx_min_y_];
     };
 
+  /* 
+   * calculate polar angles between two points
+   * parallel to x-axis is 0
+   * 
+   * args: Point p0 - translated to the origin
+   *       Point p1 - another point in reference to p0
+   * returns: the polar angle of p1 where p0 is the origin (radians)
+   */
+  float PolarAngle(Point<Num_Type> p0, Point<Num_Type> p1) const {
+    float x_diff = p1.x - p0.x;
+    float y_diff = p1.y - p0.y;
 
-    /* 
-    * calculate polar angles between two points
-    * parallel to x-axis is 0
-    * 
-    * args:
-    * returns:
-    */
-    float PolarAngle(Point<Num_Type> p0, Point<Num_Type> p1) const {
-      float x_diff = p1.x - p0.x;
-      float y_diff = p1.y - p0.y;
-
-      float hypotenuse = hypotf(x_diff, y_diff);
-      return acos(x_diff/hypotenuse); // use cosine so the function is always defined
+    float hypotenuse = hypotf(x_diff, y_diff);
+    float raw_angle = acos(x_diff/hypotenuse); // use cosine so the function is always defined
+    if(y_diff < 0){
+      return 2*kPI - raw_angle;
+    } else {
+      return raw_angle;
     }
+  }
 
 
-    /* 
-    * does the ordering self, p1, p2 create a non-left turn
-    * 
-    * args:
-    * returns:
-    */
-    bool NonLeftTurn(Point<Num_Type> p0, Point<Num_Type> p1, Point<Num_Type> p2) const {
-      float firstAngle = PolarAngle(p0, p1);
-      float secondAngle = PolarAngle(p0, p2);
-
-      if (abs(firstAngle - secondAngle) < kPI) {
-        return secondAngle <= firstAngle;
-      } else {
-        return firstAngle <= secondAngle;
-      }
-    }
+  /* 
+   * does the ordering self, p1, p2 create a non-left turn
+   * 
+   * args: three Points that form a turn
+   * returns: if p0->p2 is a non-left turn relative to p0->p1
+   */
+  bool NonLeftTurn(Point<Num_Type> p0, Point<Num_Type> p1, Point<Num_Type> p2) const {
+    float cross_product = (p2.x-p0.x)*(p1.y-p0.y) - (p1.x-p0.x)*(p2.y-p0.y);
+    return cross_product > 0;
+  }
   
   private:
     GrahamScanSerial(void);
