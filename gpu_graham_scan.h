@@ -18,13 +18,22 @@ namespace gpu_graham_scan {
 
 const float kPI = 4 * atan(1);
 
+
+
 /*
  * Cartesian Coordinate Point
  */
 template <class Num_Type> struct Point {
   Num_Type x;
   Num_Type y;
+  float p0_angle;
+
+  
 };
+
+bool operator<(const Point<int>& a, const Point<int>& b){
+  return a.p0_angle < b.p0_angle;
+}
 
 /*
  * prints helpful error diagnostics
@@ -80,6 +89,7 @@ template <class Num_Type> class GrahamScanSerial {
 
         // process each line individually of the file
         while (!infile.eof()) {
+          std::cout << "idx = " << idx << " " << points_.size() << "\n";
           getline(infile, curr_line);
           if (infile.fail()) {
             PRINT_ERROR_LOCATION();
@@ -101,7 +111,7 @@ template <class Num_Type> class GrahamScanSerial {
             idx_min_y_ = idx;
           }
 
-          points_.push_back(current_point);
+          points_[idx]  = current_point;
           idx++;
         }
 
@@ -163,6 +173,7 @@ template <class Num_Type> class GrahamScanSerial {
 
     float hypotenuse = hypotf(x_diff, y_diff);
     float raw_angle = acos(x_diff/hypotenuse); // use cosine so the function is always defined
+    // std::cout << raw_angle;
     if(y_diff < 0){
       return 2*kPI - raw_angle;
     } else {
@@ -181,10 +192,25 @@ template <class Num_Type> class GrahamScanSerial {
     float cross_product = (p2.x-p0.x)*(p1.y-p0.y) - (p1.x-p0.x)*(p2.y-p0.y);
     return cross_product > 0;
   }
+
+  void SetP0(Point<Num_Type> p0){
+    Point<Num_Type> currentPoint;
+    for(int i=0; i<points_.size(); i++){
+        currentPoint = points_[i];
+        
+        currentPoint.p0_angle = PolarAngle(p0, currentPoint);
+        std::cout << "x, y: " << currentPoint.x << " " << currentPoint.y << " " << currentPoint.p0_angle <<"\n";
+
+    }
+
+    std::sort(points_.begin(), points_.end());
+  };
   
   private:
     GrahamScanSerial(void);
 };
+
+
 
 } // gpu_graham_scan
 

@@ -10,8 +10,9 @@ int main() {
   p1.y = 2;
 
   GrahamScanSerial<int> test("test-data/test1.in");
-  cout << test.GetMinYPoint().x << ' ' << test.GetMinYPoint().y << '\n';
-
+  cout << "test min point: " << test.GetMinYPoint().x << ' ' << test.GetMinYPoint().y << '\n';
+  cout << "true min point: -1 -1 \n";
+  cout << "num points: " << test.points_.size() << "\n";
   Point<int> p2;
   p2.x = 1;
   p2.y = 1;
@@ -24,4 +25,11 @@ int main() {
   
   cout << "non left turn: " << test.NonLeftTurn(p1, p3, p2) << "\n";
   cout << "non left turn: " << test.NonLeftTurn(p1, p2, p3) << "\n";
+
+  test.SetP0(test.GetMinYPoint());
+
+  for(int i=0; i<test.points_.size(); i++){
+    cout << i << "\n";
+    cout << "sorted? " << test.points_[i].p0_angle << "\n";
+  }
 }
