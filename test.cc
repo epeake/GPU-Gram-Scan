@@ -30,7 +30,7 @@ int main() {
 
   for(int i=0; i<test.points_.size(); i++){
     cout << i << "\n";
-    Point<int> currentPoint = test.points_[i];
-    std::cout << "x, y: " << currentPoint.x << " " << currentPoint.y << " " << currentPoint.p0_angle <<"\n";
+    Point<int> current_point = test.points_[i];
+    std::cout << "x, y: " << current_point.x << " " << current_point.y << " " << current_point.p0_angle <<"\n";
   }
 }
