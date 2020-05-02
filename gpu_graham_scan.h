@@ -3,6 +3,13 @@
 #ifndef _GPU_Graham_Scan_
 #define _GPU_Graham_Scan_
 
+/*
+ * prints helpful error diagnostics
+ */
+#define PRINT_ERROR(message) fprintf(stderr, "Error: function %s, file %s, line %d.\n%s\n", __func__, __FILE__, __LINE__, message);
+#define PRINT_ERROR_LOCATION() fprintf(stderr, "Error: function %s, file %s, line %d.\n", __func__, __FILE__, __LINE__);
+
+
 #include <errno.h>
 #include <fstream>
 #include <stdio.h>
@@ -10,9 +17,6 @@
 #include <vector>
 #include <cmath> // trig functions, pow
 
-using std::string;
-using std::vector;
-using std::ifstream;
 
 namespace gpu_graham_scan {
 
@@ -27,20 +31,37 @@ template <class Num_Type> struct Point {
   Num_Type x;
   Num_Type y;
   float p0_angle;
-
-  
 };
 
-bool operator<(const Point<int>& a, const Point<int>& b){
+
+/*
+ * subtract two Points from each other
+ */
+template <class Num_Type> Point<Num_Type>
+operator-(const Point<Num_Type> & p0, const Point<Num_Type> & p1)
+{
+  Point<Num_Type> tmp;
+  tmp.x = p0.x - p1.x;
+  tmp.y = p0.y - p1.y;
+  return tmp;
+}
+
+
+template <class Num_Type> bool
+operator<(const Point<Num_Type> & a, const Point<Num_Type> & b)
+{
   return a.p0_angle < b.p0_angle;
 }
 
-/*
- * prints helpful error diagnostics
- */
-#define PRINT_ERROR(message) fprintf(stderr, "Error: function %s, file %s, line %d.\n%s\n", __func__, __FILE__, __LINE__, message);
-#define PRINT_ERROR_LOCATION() fprintf(stderr, "Error: function %s, file %s, line %d.\n", __func__, __FILE__, __LINE__);
 
+/*
+ * Calculate the cross product between two Points
+ */
+template <class Num_Type> float
+XProduct(const Point<Num_Type> & p0, const Point<Num_Type> & p1)
+{
+  return ((p1.x) * (p0.y)) - ((p0.x) * (p1.y));
+}
 
 /*
  * Used to read in a file of Point to be stored
@@ -56,8 +77,8 @@ template <class Num_Type> class GrahamScanSerial {
       
       // only function that throws is stoi/stod so need try/catch
       try {
-        string curr_line;
-        ifstream infile;
+        std::string curr_line;
+        std::ifstream infile;
         int idx = 0;
 
         infile.open(filename_);
@@ -80,8 +101,8 @@ template <class Num_Type> class GrahamScanSerial {
           std::cout<<"hi";
         }
 
-        if (total_points < 1) {
-          PRINT_ERROR("Less than one point in input file");
+        if (total_points < 4) {
+          PRINT_ERROR("Less than four points in input file");
           exit(EXIT_FAILURE);
         }
 
@@ -97,8 +118,8 @@ template <class Num_Type> class GrahamScanSerial {
             exit(EXIT_FAILURE);
           }
           int comma = curr_line.find(',');
-          string first_num = curr_line.substr(0, comma);
-          string second_num = curr_line.substr(comma + 1, curr_line.length());
+          std::string first_num = curr_line.substr(0, comma);
+          std::string second_num = curr_line.substr(comma + 1, curr_line.length());
 
           Point<Num_Type> current_point;
           current_point.x = static_cast<Num_Type>(stod(first_num));
@@ -140,7 +161,7 @@ template <class Num_Type> class GrahamScanSerial {
     /*
      * filename of points to be read in
      */
-    string filename_;
+    std::string filename_;
 
     /*
      * index of the leftmost minimum y-coordinate point in points_
@@ -150,12 +171,12 @@ template <class Num_Type> class GrahamScanSerial {
     /*
      * all of our points from the file
      */
-    vector<Point<Num_Type> > points_;
+    std::vector<Point<Num_Type> > points_;
 
     /*
-     * Returns the leftmost point with the minumum y value of our points_ vector
+     * Returns the leftmost point with the minumum y value of our points_ std::vector
      */
-    Point<Num_Type> GetMinYPoint(void) {
+    Point<Num_Type> GetMinYPoint(void) const {
       return points_[idx_min_y_];
     };
 
@@ -189,8 +210,7 @@ template <class Num_Type> class GrahamScanSerial {
    * returns: if p0->p2 is a non-left turn relative to p0->p1
    */
   bool NonLeftTurn(Point<Num_Type> p0, Point<Num_Type> p1, Point<Num_Type> p2) const {
-    float cross_product = (p2.x-p0.x)*(p1.y-p0.y) - (p1.x-p0.x)*(p2.y-p0.y);
-    return cross_product > 0;
+    return XProduct(p1 - p0, p2 - p0) > 0;
   }
 
   void SetP0(const Point<Num_Type> p0){
