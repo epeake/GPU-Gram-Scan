@@ -193,13 +193,12 @@ template <class Num_Type> class GrahamScanSerial {
     return cross_product > 0;
   }
 
-  void SetP0(Point<Num_Type> p0){
-    Point<Num_Type> currentPoint;
+  void SetP0(const Point<Num_Type> p0){
+    Point<Num_Type>* currentPoint;
     for(int i=0; i<points_.size(); i++){
-        currentPoint = points_[i];
-        
-        currentPoint.p0_angle = PolarAngle(p0, currentPoint);
-        std::cout << "x, y: " << currentPoint.x << " " << currentPoint.y << " " << currentPoint.p0_angle <<"\n";
+        currentPoint = &points_[i];
+        currentPoint->p0_angle = PolarAngle(p0, *currentPoint);
+        std::cout << "x, y: " << currentPoint->x << " " << currentPoint->y << " " << currentPoint->p0_angle <<"\n";
 
     }
 

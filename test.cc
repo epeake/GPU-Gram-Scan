@@ -30,6 +30,7 @@ int main() {
 
   for(int i=0; i<test.points_.size(); i++){
     cout << i << "\n";
-    cout << "sorted? " << test.points_[i].p0_angle << "\n";
+    Point<int> currentPoint = test.points_[i];
+    std::cout << "x, y: " << currentPoint.x << " " << currentPoint.y << " " << currentPoint.p0_angle <<"\n";
   }
 }
