@@ -11,8 +11,8 @@ using namespace gpu_graham_scan;
 //     Point<Num_Type> currentPoint;
 //     for(int i=0; i<points_.size(); i++){
 //         currentPoint = points_[i];
-//         std::cout << "x, y: " << currentPoint.x << " " << currentPoint.y << "\n";
-//         currentPoint.p0_angle = PolarAngle(p0, currentPoint);
+//         std::cout << "x, y: " << currentPoint.x << " " << currentPoint.y <<
+//         "\n"; currentPoint.p0_angle = PolarAngle(p0, currentPoint);
 //     }
 
 //     std::sort(points_.begin(), points_.end());
