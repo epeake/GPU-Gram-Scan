@@ -3,20 +3,26 @@
 #ifndef _GPU_Graham_Scan_
 #define _GPU_Graham_Scan_
 
+/*
+ * prints helpful error diagnostics
+ */
+#define PRINT_ERROR(message) fprintf(stderr, "Error: function %s, file %s, line %d.\n%s\n", __func__, __FILE__, __LINE__, message);
+#define PRINT_ERROR_LOCATION() fprintf(stderr, "Error: function %s, file %s, line %d.\n", __func__, __FILE__, __LINE__);
+
+
 #include <errno.h>
 #include <fstream>
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <stack>
 #include <cmath> // trig functions, pow
 
-using std::string;
-using std::vector;
-using std::ifstream;
 
 namespace gpu_graham_scan {
 
-const float kPI = 4 * atan(1);
+
+
 
 /*
  * Cartesian Coordinate Point
@@ -26,12 +32,52 @@ template <class Num_Type> struct Point {
   Num_Type y;
 };
 
-/*
- * prints helpful error diagnostics
- */
-#define PRINT_ERROR(message) fprintf(stderr, "Error: function %s, file %s, line %d.\n%s\n", __func__, __FILE__, __LINE__, message);
-#define PRINT_ERROR_LOCATION() fprintf(stderr, "Error: function %s, file %s, line %d.\n", __func__, __FILE__, __LINE__);
+enum TurnDir_e {
+  RIGHT,
+  NONE,
+  LEFT
+};
 
+
+/*
+ * subtract two Points from each other
+ */
+template <class Num_Type> Point<Num_Type>
+operator-(const Point<Num_Type> & p1, const Point<Num_Type> & p2)
+{
+  Point<Num_Type> tmp;
+  tmp.x = p1.x - p2.x;
+  tmp.y = p1.y - p2.y;
+  return tmp;
+}
+
+/*
+ * add two Points from each other
+ */
+template <class Num_Type> Point<Num_Type>
+operator+(const Point<Num_Type> & p1, const Point<Num_Type> & p2)
+{
+  Point<Num_Type> tmp;
+  tmp.x = p1.x + p2.x;
+  tmp.y = p1.y + p2.y;
+  return tmp;
+}
+
+template <class Num_Type> bool
+operator<(const Point<Num_Type> & a, const Point<Num_Type> & b)
+{
+  return XProduct(a,b) <= 0;
+}
+
+
+/*
+ * Calculate the cross product between two Points
+ */
+template <class Num_Type> float
+XProduct(const Point<Num_Type> & p1, const Point<Num_Type> & p2)
+{
+  return ((p2.x) * (p1.y)) - ((p1.x) * (p2.y));
+}
 
 /*
  * Used to read in a file of Point to be stored
@@ -41,14 +87,65 @@ template <class Num_Type> class GrahamScanSerial {
   public:
 
     /*
-     * Constructor reads through the file, populating points_ and idx_min_y_
+     * Constructor reads through the file, populating points_ and p0_
      */
     GrahamScanSerial(const char * filename) : filename_(filename) {
-      
+      ReadFile();
+      CenterP0();
+      std::sort(points_.begin(), points_.end());
+
+      std::vector< Point<Num_Type> > hull = Run();
+      std::cout << "here comes the hull: \n";
+      for (int i = 0; i < hull.size(); i++) {
+        std::cout << hull[i].x << " " << hull[i].y << "\n";
+      }
+    };
+
+    ~GrahamScanSerial() { }
+
+    /*
+     * filename of points to be read in
+     */
+    std::string filename_;
+
+
+
+    /*
+     * all of our points from the file
+     */
+    std::vector<Point<Num_Type> > points_;
+
+  int Turn(Point<Num_Type> p1, Point<Num_Type> p2) const {
+    float x_product = XProduct(p1, p2);
+    if (x_product > 0) { // right turn
+      return RIGHT;
+    } 
+    if (x_product == 0){ // equivalent angles
+      return NONE; 
+    }
+    return LEFT; // left turn
+  }
+
+  /* 
+   * does the ordering self, p1, p2 create a non-left turn
+   * 
+   * args: three Points that form a turn
+   * returns: if p0->p2 is a non-left turn relative to p0->p1
+   */
+  bool NonLeftTurn(Point<Num_Type> p0, Point<Num_Type> p1, Point<Num_Type> p2) const {
+    return XProduct(p1 - p0, p2 - p0) > 0;
+  };
+  
+  private:
+    Point<Num_Type> p0_;
+
+    GrahamScanSerial(void);
+
+    void ReadFile(){
       // only function that throws is stoi/stod so need try/catch
       try {
-        string curr_line;
-        ifstream infile;
+        std::string curr_line;
+        std::ifstream infile;
         int idx = 0;
 
         infile.open(filename_);
@@ -71,15 +168,17 @@ template <class Num_Type> class GrahamScanSerial {
           std::cout<<"hi";
         }
 
-        if (total_points < 1) {
-          PRINT_ERROR("Less than one point in input file");
+        if (total_points < 4) {
+          PRINT_ERROR("Less than four points in input file");
           exit(EXIT_FAILURE);
         }
 
         points_.resize(total_points);
 
         // process each line individually of the file
+        Point<Num_Type> curr_min;
         while (!infile.eof()) {
+          std::cout << "idx = " << idx << " " << points_.size() << "\n";
           getline(infile, curr_line);
           if (infile.fail()) {
             PRINT_ERROR_LOCATION();
@@ -87,23 +186,26 @@ template <class Num_Type> class GrahamScanSerial {
             exit(EXIT_FAILURE);
           }
           int comma = curr_line.find(',');
-          string first_num = curr_line.substr(0, comma);
-          string second_num = curr_line.substr(comma + 1, curr_line.length());
+          std::string first_num = curr_line.substr(0, comma);
+          std::string second_num = curr_line.substr(comma + 1, curr_line.length());
 
           Point<Num_Type> current_point;
-          current_point.x = (Num_Type) stod(first_num);
-          current_point.y = (Num_Type) stod(second_num);
+          current_point.x = static_cast<Num_Type>(stod(first_num));
+          current_point.y = static_cast<Num_Type>(stod(second_num));
 
           // update the current minumim point's index
+          
           if (idx == 0
-              || (current_point.y == GetMinYPoint().y && current_point.x < GetMinYPoint().x)
-              || current_point.y < GetMinYPoint().y) {
-            idx_min_y_ = idx;
+              || (current_point.y == curr_min.y && current_point.x < curr_min.x)
+              || current_point.y < curr_min.y) {
+            curr_min = current_point;
           }
 
-          points_.push_back(current_point);
+          points_[idx]  = current_point;
           idx++;
         }
+
+        p0_ = curr_min;
 
         if (total_points != idx) {
           PRINT_ERROR("Incorrect number of points specified by file");
@@ -123,68 +225,47 @@ template <class Num_Type> class GrahamScanSerial {
         PRINT_ERROR(ia.what());
         exit(EXIT_FAILURE);
       }
-    };
-
-    ~GrahamScanSerial() { }
-
-    /*
-     * filename of points to be read in
-     */
-    string filename_;
-
-    /*
-     * index of the leftmost minimum y-coordinate point in points_
-     */
-    int idx_min_y_;
-
-    /*
-     * all of our points from the file
-     */
-    vector<Point<Num_Type> > points_;
-
-    /*
-     * Returns the leftmost point with the minumum y value of our points_ vector
-     */
-    Point<Num_Type> GetMinYPoint(void) {
-      return points_[idx_min_y_];
-    };
-
-  /* 
-   * calculate polar angles between two points
-   * parallel to x-axis is 0
-   * 
-   * args: Point p0 - translated to the origin
-   *       Point p1 - another point in reference to p0
-   * returns: the polar angle of p1 where p0 is the origin (radians)
-   */
-  float PolarAngle(Point<Num_Type> p0, Point<Num_Type> p1) const {
-    float x_diff = p1.x - p0.x;
-    float y_diff = p1.y - p0.y;
-
-    float hypotenuse = hypotf(x_diff, y_diff);
-    float raw_angle = acos(x_diff/hypotenuse); // use cosine so the function is always defined
-    if(y_diff < 0){
-      return 2*kPI - raw_angle;
-    } else {
-      return raw_angle;
     }
+
+  void CenterP0() {
+    for(int i=0; i<points_.size(); i++){
+        points_[i] = points_[i] - p0_;
+    }
+
   }
 
+  std::vector< Point<Num_Type> > Run() {
+    std::stack< Point<Num_Type> > s;
+    s.push(points_[0]);
+    s.push(points_[1]);
+    s.push(points_[2]);
 
-  /* 
-   * does the ordering self, p1, p2 create a non-left turn
-   * 
-   * args: three Points that form a turn
-   * returns: if p0->p2 is a non-left turn relative to p0->p1
-   */
-  bool NonLeftTurn(Point<Num_Type> p0, Point<Num_Type> p1, Point<Num_Type> p2) const {
-    float cross_product = (p2.x-p0.x)*(p1.y-p0.y) - (p1.x-p0.x)*(p2.y-p0.y);
-    return cross_product > 0;
-  }
+    Point<Num_Type> top1, top2, current_point;
+    for (int i = 3; i < points_.size(); i++) {
+      top1 = s.top();
+      s.pop();
+      top2 = s.top();
+      current_point = points_[i];
+      while (Turn(top1 - top2, current_point - top2) != LEFT) {
+        top1 = s.top();
+        s.pop();
+        top2 = s.top();
+      }
+      s.push(top1);
+      s.push(current_point);
+    }
   
-  private:
-    GrahamScanSerial(void);
+
+    std::vector< Point<Num_Type> > hull;
+    while (!s.empty()) {
+      hull.push_back(s.top() + p0_);
+      s.pop();
+    }
+    return hull;
+  }
 };
+
+
 
 } // gpu_graham_scan
 
