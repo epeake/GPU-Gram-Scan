@@ -1,3 +1,6 @@
+#include <algorithm>
+
+#include "CycleTimer.h"
 #pragma once
 
 #ifndef _GPU_Graham_Scan_
@@ -30,6 +33,7 @@ template <class Num_Type>
 struct Point {
   Num_Type x;
   Num_Type y;
+  int id;
 };
 
 enum TurnDir { RIGHT, NONE, LEFT };
@@ -81,17 +85,7 @@ class GrahamScanSerial {
   /*
    * Constructor reads through the file, populating points_ and p0_
    */
-  GrahamScanSerial(const char* filename) : filename_(filename) {
-    ReadFile();
-    CenterP0();
-    std::sort(points_.begin(), points_.end());
-
-    std::vector<Point<Num_Type> > hull = Run();
-    std::cout << "here comes the hull: \n";
-    for (int i = 0; i < hull.size(); i++) {
-      std::cout << hull[i].x << " " << hull[i].y << "\n";
-    }
-  };
+  GrahamScanSerial(const char* filename) : filename_(filename) { ReadFile(); };
 
   ~GrahamScanSerial() {}
 
@@ -105,6 +99,9 @@ class GrahamScanSerial {
    */
   std::vector<Point<Num_Type> > points_;
 
+  /*
+   * identifies direction of turn using origin, p1, p2
+   */
   int Turn(Point<Num_Type> p1, Point<Num_Type> p2) const {
     float x_product = XProduct(p1, p2);
     if (x_product > 0) {  // right turn
@@ -126,6 +123,44 @@ class GrahamScanSerial {
                    Point<Num_Type> p2) const {
     return XProduct(p1 - p0, p2 - p0) > 0;
   };
+
+  void CenterP0() {
+    for (int i = 0; i < points_.size(); i++) {
+      points_[i] = points_[i] - p0_;
+    }
+  }
+
+  std::vector<int> Run() {
+    std::stack<Point<Num_Type> > s;
+    s.push(points_[0]);
+    s.push(points_[1]);
+    s.push(points_[2]);
+    // std::cout << "initial points pushed\n";
+    Point<Num_Type> top1, top2, current_point;
+    for (int i = 3; i < points_.size(); i++) {
+      top1 = s.top();
+      s.pop();
+      top2 = s.top();
+      current_point = points_[i];
+      while (Turn(top1 - top2, current_point - top2) != LEFT) {
+        top1 = s.top();
+        s.pop();
+        top2 = s.top();
+      }
+      s.push(top1);
+      s.push(current_point);
+    }
+    // std::cout << "algorithm run\n";
+
+    std::vector<int> hull;
+    while (!s.empty()) {
+      current_point = s.top();
+      hull.push_back(current_point.id);
+      s.pop();
+    }
+    // std::cout << "while completed\n";
+    return hull;
+  }
 
  private:
   Point<Num_Type> p0_;
@@ -184,6 +219,7 @@ class GrahamScanSerial {
         Point<Num_Type> current_point;
         current_point.x = static_cast<Num_Type>(stod(first_num));
         current_point.y = static_cast<Num_Type>(stod(second_num));
+        current_point.id = idx;
 
         // update the current minumim point's index
 
@@ -217,41 +253,6 @@ class GrahamScanSerial {
       GPU_GS_PRINT_ERR(ia.what());
       exit(EXIT_FAILURE);
     }
-  }
-
-  void CenterP0() {
-    for (int i = 0; i < points_.size(); i++) {
-      points_[i] = points_[i] - p0_;
-    }
-  }
-
-  std::vector<Point<Num_Type> > Run() {
-    std::stack<Point<Num_Type> > s;
-    s.push(points_[0]);
-    s.push(points_[1]);
-    s.push(points_[2]);
-
-    Point<Num_Type> top1, top2, current_point;
-    for (int i = 3; i < points_.size(); i++) {
-      top1 = s.top();
-      s.pop();
-      top2 = s.top();
-      current_point = points_[i];
-      while (Turn(top1 - top2, current_point - top2) != LEFT) {
-        top1 = s.top();
-        s.pop();
-        top2 = s.top();
-      }
-      s.push(top1);
-      s.push(current_point);
-    }
-
-    std::vector<Point<Num_Type> > hull;
-    while (!s.empty()) {
-      hull.push_back(s.top() + p0_);
-      s.pop();
-    }
-    return hull;
   }
 };
 
