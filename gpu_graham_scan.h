@@ -70,7 +70,6 @@ template <class Num_Type>
 Point<Num_Type> operator+(const Point<Num_Type>& p1,
                           const Point<Num_Type>& p2) {
   return Point<Num_Type>(p1.x_ + p2.x_, p1.y_ + p2.y_);
-  ;
 }
 
 /*
@@ -88,7 +87,7 @@ Point<Num_Type> operator+(const Point<Num_Type>& p1,
  */
 template <class Num_Type>
 TurnDir GetTurnDir(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
-  float x_product = XProduct(p1, p2);
+  Num_Type x_product = XProduct(p1, p2);
   if (x_product > 0) {
     return RIGHT;
   }
@@ -100,10 +99,16 @@ TurnDir GetTurnDir(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
 
 /*
  * Comparator for two points used for sorting points based on polar angle.
+ * If polar angles are the same, we sort in increasing order of squared
+ * magnitude.
  */
 template <class Num_Type>
 bool operator<(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
-  return GetTurnDir(p1, p2) == RIGHT;
+  TurnDir dir = GetTurnDir(p1, p2);
+  if (dir == NONE) {
+    return SqrdMagnitude(p1) <= SqrdMagnitude(p2);
+  }
+  return dir == RIGHT;
 }
 
 /*
@@ -117,8 +122,23 @@ bool operator<(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
  *  float: our cross product
  */
 template <class Num_Type>
-float XProduct(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
-  return ((p1.x_) * (p2.y_)) - ((p2.x_) * (p1.y_));
+Num_Type XProduct(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
+  return (p1.x_ * p2.y_) - (p2.x_ * p1.y_);
+}
+
+/*
+ * calculate the squared magnitude of a vector
+ *
+ * params:
+ *  p1: our first point
+ *  p2: our second point
+ *
+ * returns:
+ *  Num_Type: our squared magnitude
+ */
+template <class Num_Type>
+Num_Type SqrdMagnitude(const Point<Num_Type>& p) {
+  return (p.x_ * p.x_) + (p.y_ * p.y_);
 }
 
 /*
@@ -134,7 +154,9 @@ class GrahamScanSerial {
   GrahamScanSerial(const char* filename) : filename_(filename) {
     ReadFile();
     CenterP0();
-    std::sort(points_.begin(), points_.end());
+
+    // sort after the first point (p0)
+    std::sort(points_.begin() + 1, points_.end());
 
     GetHull();
     std::cout << "here comes the hull: \n";
@@ -193,9 +215,6 @@ class GrahamScanSerial {
       }
 
       int total_points = stoi(curr_line);
-      if (errno != 0) {
-        std::cout << "hi";
-      }
 
       if (total_points < 4) {
         GPU_GS_PRINT_ERR("Less than four points in input file");
@@ -206,6 +225,7 @@ class GrahamScanSerial {
 
       // process each line individually of the file
       Point<Num_Type> curr_min;
+      int min_y_idx = 0;
       while (!infile.eof()) {
         getline(infile, curr_line);
         if (infile.fail()) {
@@ -222,12 +242,12 @@ class GrahamScanSerial {
         current_point.x_ = static_cast<Num_Type>(stod(first_num));
         current_point.y_ = static_cast<Num_Type>(stod(second_num));
 
-        // update the current minumim point's index
-
+        // update the current minumim point's index and value
         if ((current_point.y_ == curr_min.y_ &&
              current_point.x_ < curr_min.x_) ||
             current_point.y_ < curr_min.y_ || idx == 0) {
           curr_min = current_point;
+          min_y_idx = idx;
         }
 
         points_[idx] = current_point;
@@ -235,6 +255,11 @@ class GrahamScanSerial {
       }
 
       p0_ = curr_min;
+
+      // make sure that the current min is the first element of the array
+      Point<Num_Type> tmp = points_[0];
+      points_[0] = points_[min_y_idx];
+      points_[min_y_idx] = tmp;
 
       if (total_points != idx) {
         GPU_GS_PRINT_ERR("Incorrect number of points specified by file");
@@ -270,25 +295,45 @@ class GrahamScanSerial {
    * in the public hull_ variable.
    */
   void GetHull() {
+    // count total number of relevant points in points_
+    int total_rel = 1;
+    int curr = 1;
+    int runner = 2;
+    while (runner < points_.size() + 1) {
+      // we only want to keep the furthest elt from p0 where multiple points
+      // have the same polar angle
+      if (runner == points_.size() ||
+          GetTurnDir(points_[curr], points_[runner]) != NONE) {
+        // if points are now not colinear, take the last colinear point and
+        // store it at the last relevant index of points_
+        points_[total_rel] = points_[runner - 1];
+        curr = runner;
+        total_rel++;
+      }
+      runner++;
+    }
+
     std::stack<Point<Num_Type> > s;
     s.push(points_[0]);
     s.push(points_[1]);
     s.push(points_[2]);
 
-    Point<Num_Type> top1, top2, current_point;
-    for (int i = 3; i < points_.size(); i++) {
-      top1 = s.top();
+    Point<Num_Type> top, next_to_top, current_point;
+    for (int i = 3; i < total_rel; i++) {
+      top = s.top();
       s.pop();
-      top2 = s.top();
+      next_to_top = s.top();
       current_point = points_[i];
 
-      // while our current point is not to the left of top1, relative to top2
-      while (GetTurnDir(current_point - top2, top1 - top2) != LEFT) {
-        top1 = top2;
+      // while our current point is not to the left of top, relative to
+      // next_to_top
+      while (GetTurnDir(current_point - next_to_top, top - next_to_top) !=
+             LEFT) {
+        top = next_to_top;
         s.pop();
-        top2 = s.top();
+        next_to_top = s.top();
       }
-      s.push(top1);
+      s.push(top);
       s.push(current_point);
     }
 
