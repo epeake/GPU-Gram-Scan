@@ -15,6 +15,20 @@ std::vector<int> SolveSerial(GrahamScanSerial<int>* input) {
   return hull;
 }
 
+bool ValidateSolution(std::vector<int> soln1, std::vector<int> soln2) {
+  if (soln1.size() != soln2.size()) {
+    fprintf(stderr, "Hulls have different numbers of elements");
+    return false;
+  }
+
+  for (int i = 0; i < soln1.size(); i++){
+    if (soln1[i] != soln2[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 template <class Fn>
 double Benchmark(int num_runs, Fn&& fn, const char* filename) {
   double min_time = std::numeric_limits<double>::max();
