@@ -24,72 +24,144 @@
 namespace gpu_graham_scan {
 
 /*
- * Cartesian Coordinate Point
+ * cartesian coordinate point
  */
 template <class Num_Type>
 struct Point {
-  Num_Type x;
-  Num_Type y;
+  Num_Type x_;
+  Num_Type y_;
+
+  Point(Num_Type x = 0, Num_Type y = 0) : x_(x), y_(y) {}
 };
 
+/*
+ * the directions we can turn in, used when seeing if two points make a
+ * right, left, or no turn
+ */
 enum TurnDir { RIGHT, NONE, LEFT };
 
 /*
  * subtract two Points from each other
+ *
+ * params:
+ *  p1: our first point
+ *  p2: our second point
+ *
+ * returns:
+ *  Point<Num_Type> of the difference
  */
 template <class Num_Type>
 Point<Num_Type> operator-(const Point<Num_Type>& p1,
                           const Point<Num_Type>& p2) {
-  Point<Num_Type> tmp;
-  tmp.x = p1.x - p2.x;
-  tmp.y = p1.y - p2.y;
-  return tmp;
+  return Point<Num_Type>(p1.x_ - p2.x_, p1.y_ - p2.y_);
 }
 
 /*
- * add two Points from each other
+ * add two Points to each other
+ *
+ * params:
+ *  p1: our first point
+ *  p2: our second point
+ *
+ * returns:
+ *  Point<Num_Type> of the sum
  */
 template <class Num_Type>
 Point<Num_Type> operator+(const Point<Num_Type>& p1,
                           const Point<Num_Type>& p2) {
-  Point<Num_Type> tmp;
-  tmp.x = p1.x + p2.x;
-  tmp.y = p1.y + p2.y;
-  return tmp;
-}
-
-template <class Num_Type>
-bool operator<(const Point<Num_Type>& a, const Point<Num_Type>& b) {
-  return XProduct(a, b) <= 0;
+  return Point<Num_Type>(p1.x_ + p2.x_, p1.y_ + p2.y_);
 }
 
 /*
- * Calculate the cross product between two Points
+ * determines whether p1 is to the right or left of p2
+ *
+ * params:
+ *  p1: starting point
+ *  p2: point whose location we are seeking relative to p1
+ *
+ * returns:
+ *  TurnDir:
+ *    RIGHT: p1 to the right of p2
+ *    NONE:  p1 and p2 colinear
+ *    LEFT:  p1 to the left of p2
  */
 template <class Num_Type>
-float XProduct(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
-  return ((p2.x) * (p1.y)) - ((p1.x) * (p2.y));
+TurnDir GetTurnDir(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
+  Num_Type x_product = XProduct(p1, p2);
+  if (x_product > 0) {
+    return RIGHT;
+  }
+  if (x_product == 0) {
+    return NONE;
+  }
+  return LEFT;
 }
 
 /*
- * Used to read in a file of Point to be stored
- * as a vector.
+ * Comparator for two points used for sorting points based on polar angle.
+ * If polar angles are the same, we sort in increasing order of squared
+ * magnitude.
+ */
+template <class Num_Type>
+bool operator<(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
+  TurnDir dir = GetTurnDir(p1, p2);
+  if (dir == NONE) {
+    return SqrdMagnitude(p1) <= SqrdMagnitude(p2);
+  }
+  return dir == RIGHT;
+}
+
+/*
+ * calculate the cross product between two Points
+ *
+ * params:
+ *  p1: our first point
+ *  p2: our second point
+ *
+ * returns:
+ *  float: our cross product
+ */
+template <class Num_Type>
+Num_Type XProduct(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
+  return (p1.x_ * p2.y_) - (p2.x_ * p1.y_);
+}
+
+/*
+ * calculate the squared magnitude of a vector
+ *
+ * params:
+ *  p1: our first point
+ *  p2: our second point
+ *
+ * returns:
+ *  Num_Type: our squared magnitude
+ */
+template <class Num_Type>
+Num_Type SqrdMagnitude(const Point<Num_Type>& p) {
+  return (p.x_ * p.x_) + (p.y_ * p.y_);
+}
+
+/*
+ * GrahamScanSerial computes and stores our convex hull using points from a
+ * specified file in serial
  */
 template <class Num_Type>
 class GrahamScanSerial {
  public:
   /*
-   * Constructor reads through the file, populating points_ and p0_
+   * Constructor uses points from our file to construct our hull
    */
   GrahamScanSerial(const char* filename) : filename_(filename) {
     ReadFile();
     CenterP0();
-    std::sort(points_.begin(), points_.end());
 
-    std::vector<Point<Num_Type> > hull = Run();
+    // sort after the first point (p0)
+    std::sort(points_.begin() + 1, points_.end());
+
+    GetHull();
     std::cout << "here comes the hull: \n";
-    for (int i = 0; i < hull.size(); i++) {
-      std::cout << hull[i].x << " " << hull[i].y << "\n";
+    for (int i = 0; i < hull_.size(); i++) {
+      std::cout << hull_[i].x_ << " " << hull_[i].y_ << "\n";
     }
   };
 
@@ -105,33 +177,21 @@ class GrahamScanSerial {
    */
   std::vector<Point<Num_Type> > points_;
 
-  int Turn(Point<Num_Type> p1, Point<Num_Type> p2) const {
-    float x_product = XProduct(p1, p2);
-    if (x_product > 0) {  // right turn
-      return RIGHT;
-    }
-    if (x_product == 0) {  // equivalent angles
-      return NONE;
-    }
-    return LEFT;  // left turn
-  }
-
   /*
-   * does the ordering self, p1, p2 create a non-left turn
-   *
-   * args: three Points that form a turn
-   * returns: if p0->p2 is a non-left turn relative to p0->p1
+   * our convex hull
    */
-  bool NonLeftTurn(Point<Num_Type> p0, Point<Num_Type> p1,
-                   Point<Num_Type> p2) const {
-    return XProduct(p1 - p0, p2 - p0) > 0;
-  };
+  std::vector<Point<Num_Type> > hull_;
 
  private:
   Point<Num_Type> p0_;
 
   GrahamScanSerial(void);
 
+  /*
+   * reads all points in from filename_ and stores them in our points_ vecor.
+   * as we read through the file, we also keep track of the leftmost/min-y
+   * point in our file, which we save as p0_
+   */
   void ReadFile() {
     // only function that throws is stoi/stod so need try/catch
     try {
@@ -155,9 +215,6 @@ class GrahamScanSerial {
       }
 
       int total_points = stoi(curr_line);
-      if (errno != 0) {
-        std::cout << "hi";
-      }
 
       if (total_points < 4) {
         GPU_GS_PRINT_ERR("Less than four points in input file");
@@ -168,29 +225,29 @@ class GrahamScanSerial {
 
       // process each line individually of the file
       Point<Num_Type> curr_min;
+      int min_y_idx = 0;
       while (!infile.eof()) {
-        std::cout << "idx = " << idx << " " << points_.size() << "\n";
         getline(infile, curr_line);
         if (infile.fail()) {
           GPU_GS_PRINT_ERR_LOC();
           perror("getline");
           exit(EXIT_FAILURE);
         }
-        int comma = curr_line.find(',');
-        std::string first_num = curr_line.substr(0, comma);
+        int comma_idx = curr_line.find(',');
+        std::string first_num = curr_line.substr(0, comma_idx);
         std::string second_num =
-            curr_line.substr(comma + 1, curr_line.length());
+            curr_line.substr(comma_idx + 1, curr_line.length());
 
         Point<Num_Type> current_point;
-        current_point.x = static_cast<Num_Type>(stod(first_num));
-        current_point.y = static_cast<Num_Type>(stod(second_num));
+        current_point.x_ = static_cast<Num_Type>(stod(first_num));
+        current_point.y_ = static_cast<Num_Type>(stod(second_num));
 
-        // update the current minumim point's index
-
-        if (idx == 0 ||
-            (current_point.y == curr_min.y && current_point.x < curr_min.x) ||
-            current_point.y < curr_min.y) {
+        // update the current minumim point's index and value
+        if ((current_point.y_ == curr_min.y_ &&
+             current_point.x_ < curr_min.x_) ||
+            current_point.y_ < curr_min.y_ || idx == 0) {
           curr_min = current_point;
+          min_y_idx = idx;
         }
 
         points_[idx] = current_point;
@@ -198,6 +255,11 @@ class GrahamScanSerial {
       }
 
       p0_ = curr_min;
+
+      // make sure that the current min is the first element of the array
+      Point<Num_Type> tmp = points_[0];
+      points_[0] = points_[min_y_idx];
+      points_[min_y_idx] = tmp;
 
       if (total_points != idx) {
         GPU_GS_PRINT_ERR("Incorrect number of points specified by file");
@@ -219,39 +281,66 @@ class GrahamScanSerial {
     }
   }
 
+  /*
+   * centers points_ around p0_ so that p0_ is now the origin
+   */
   void CenterP0() {
     for (int i = 0; i < points_.size(); i++) {
       points_[i] = points_[i] - p0_;
     }
   }
 
-  std::vector<Point<Num_Type> > Run() {
+  /*
+   * Gets our convex hull using the graham-scan algorithm.  The hull is stored
+   * in the public hull_ variable.
+   */
+  void GetHull() {
+    // count total number of relevant points in points_
+    int total_rel = 1;
+    int curr = 1;
+    int runner = 2;
+    while (runner < points_.size() + 1) {
+      // we only want to keep the furthest elt from p0 where multiple points
+      // have the same polar angle
+      if (runner == points_.size() ||
+          GetTurnDir(points_[curr], points_[runner]) != NONE) {
+        // if points are now not colinear, take the last colinear point and
+        // store it at the last relevant index of points_
+        points_[total_rel] = points_[runner - 1];
+        curr = runner;
+        total_rel++;
+      }
+      runner++;
+    }
+
     std::stack<Point<Num_Type> > s;
     s.push(points_[0]);
     s.push(points_[1]);
     s.push(points_[2]);
 
-    Point<Num_Type> top1, top2, current_point;
-    for (int i = 3; i < points_.size(); i++) {
-      top1 = s.top();
+    Point<Num_Type> top, next_to_top, current_point;
+    for (int i = 3; i < total_rel; i++) {
+      top = s.top();
       s.pop();
-      top2 = s.top();
+      next_to_top = s.top();
       current_point = points_[i];
-      while (Turn(top1 - top2, current_point - top2) != LEFT) {
-        top1 = s.top();
+
+      // while our current point is not to the left of top, relative to
+      // next_to_top
+      while (GetTurnDir(current_point - next_to_top, top - next_to_top) !=
+             LEFT) {
+        top = next_to_top;
         s.pop();
-        top2 = s.top();
+        next_to_top = s.top();
       }
-      s.push(top1);
+      s.push(top);
       s.push(current_point);
     }
 
-    std::vector<Point<Num_Type> > hull;
     while (!s.empty()) {
-      hull.push_back(s.top() + p0_);
+      hull_.push_back(s.top() + p0_);
       s.pop();
     }
-    return hull;
   }
 };
 
