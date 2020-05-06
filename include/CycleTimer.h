@@ -1,5 +1,5 @@
-// This file was adapted from Stanford CS149. No copyright was included, but it
-// appears to originate from a CMU course.
+// This file was adapted from Stanford CS149. No copyright was included, but it appears
+// to originate from a CMU course.
 #pragma once
 
 #if defined(__APPLE__)
@@ -34,8 +34,7 @@
  * interface.
  *
  * Also note that if you processors' speeds change (i.e. processors scaling) or
- * if you are in a heterogenous environment, you will likely get spurious
- * results.
+ * if you are in a heterogenous environment, you will likely get spurious results.
  */
 class CycleTimer {
  public:
@@ -73,8 +72,7 @@ class CycleTimer {
   /**
    * @brief Return the current CPU time, in terms of seconds.
    *
-   * This is slower than currentTicks().  Time zero is at some arbitrary point
-   * in the past.
+   * This is slower than currentTicks().  Time zero is at some arbitrary point in the past.
    */
   static double currentSeconds() { return currentTicks() * secondsPerTick(); }
 
