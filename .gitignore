@@ -1,5 +1,7 @@
 *.o
-test
 .vscode
 CMakeFiles
 CMakeCache.txt
+build
+Testing
+testBin
