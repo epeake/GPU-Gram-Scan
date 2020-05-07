@@ -7,6 +7,7 @@ using namespace std;
 using namespace gpu_graham_scan;
 
 int kRuns = 3;
+int kPoints = 5;
 
 /*
  * find convex hull for points in input
@@ -52,11 +53,11 @@ bool ValidateSolution(std::vector<Point<Num_Type> >& soln1,
 }
 
 template <class Fn, class Num_Type>
-double Benchmark(int num_runs, Fn&& fn, const char* filename,
+double Benchmark(int num_runs, Fn&& fn, int n,
                  std::vector<Point<Num_Type> >& hull) {
   double min_time = std::numeric_limits<double>::max();
   for (int i = 0; i < num_runs; i++) {
-    GrahamScanSerial<int> input(filename);
+    GrahamScanSerial<int> input(n);
     double start_time = CycleTimer::currentSeconds();
     std::vector<Point<Num_Type> > temp = fn(&input);
     hull = temp;
@@ -67,15 +68,18 @@ double Benchmark(int num_runs, Fn&& fn, const char* filename,
 }
 
 int main() {
+  GrahamScanSerial<int> test1(5);
+  GrahamScanSerial<int> test2(5);
+
   std::vector<Point<int> > serial_output;
   double serial_min_time =
-      Benchmark(kRuns, SolveSerial<int>, "test-data/test1.in", serial_output);
+      Benchmark(kRuns, SolveSerial<int>, kPoints, serial_output);
   printf("[Graham-Scan serial]:\t\t%.3f ms\t%.3fX speedup\n",
          serial_min_time * 1000, 1.);
 
   std::vector<Point<int> > parallel_output;
   double parallel_min_time =
-      Benchmark(kRuns, SolveSerial<int>, "test-data/test1.in", parallel_output);
+      Benchmark(kRuns, SolveSerial<int>, kPoints, parallel_output);
   printf("[Graham-Scan parallel]:\t\t%.3f ms\t%.3fX speedup\n",
          parallel_min_time * 1000, serial_min_time / parallel_min_time);
   if (!ValidateSolution(serial_output, parallel_output)) {
