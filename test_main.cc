@@ -10,19 +10,27 @@ int kRuns = 3;
 
 /*
  * find convex hull for points in input
+ * serial implementation
  */
 template <class Num_Type>
 std::vector<Point<Num_Type> > SolveSerial(GrahamScanSerial<Num_Type>* input) {
-  cout << "Solving serial\n";
-  input->GetHull();
+  input->GetHullSerial();
+  return input->hull_;
+}
+
+/*
+ * find convex hull for points in input
+ * parallel implementation
+ */
+template <class Num_Type>
+std::vector<Point<Num_Type> > SolveParallel(GrahamScanSerial<Num_Type>* input) {
+  input->GetHullParallel();
   return input->hull_;
 }
 
 template <class Num_Type>
 bool ValidateSolution(std::vector<Point<Num_Type> >& soln1,
                       std::vector<Point<Num_Type> >& soln2) {
-  cout << "Validating Solution \n";
-  cout << "soln1 size: " << soln1.size();
   if (soln1.size() != soln2.size()) {
     fprintf(stderr, "Hulls have different numbers of elements");
     return false;
@@ -38,6 +46,7 @@ bool ValidateSolution(std::vector<Point<Num_Type> >& soln1,
     if (soln1[i] != soln2[i]) {
       return false;
     }
+    i++;
   }
   return true;
 }
@@ -51,7 +60,6 @@ double Benchmark(int num_runs, Fn&& fn, const char* filename,
     double start_time = CycleTimer::currentSeconds();
     std::vector<Point<Num_Type> > temp = fn(&input);
     hull = temp;
-    cout << "benchmark hull size: " << hull.size() << "\n";
     double end_time = CycleTimer::currentSeconds();
     min_time = std::min(min_time, end_time - start_time);
   }
@@ -59,48 +67,18 @@ double Benchmark(int num_runs, Fn&& fn, const char* filename,
 }
 
 int main() {
-  // Point<int> p1;
-  // p1.x = 1;
-  // p1.y = 2;
+  std::vector<Point<int> > serial_output;
+  double serial_min_time =
+      Benchmark(kRuns, SolveSerial<int>, "test-data/test1.in", serial_output);
+  printf("[Graham-Scan serial]:\t\t%.3f ms\t%.3fX speedup\n",
+         serial_min_time * 1000, 1.);
 
-  GrahamScanSerial<int> test("test-data/test1.in");
-  cout << "constructed \n";
-
-  std::vector<Point<int> > output;
-  // output = std::move(output);
-  // std::vector<int>&& output_vec = output;
-  // output = SolveSerial(&test);
-  // cout << "solve serial:" << output.size() << "\n";
-
-  double min_time =
-      Benchmark(kRuns, SolveSerial<int>, "test-data/test1.in", output);
-  cout << "min time was: " << min_time << " seconds\n";
-  cout << "validate solution\n";
-  cout << output.size() << "\n";
-  cout << ValidateSolution(output, output);
-
-  // Benchmark(kRuns, Run)
-  // cout << "test min point: " << test.GetMinYPoint().x << ' ' <<
-  // test.GetMinYPoint().y << '\n'; cout << "true min point: -1 -1 \n"; cout <<
-  // "num points: " << test.points_.size() << "\n"; Point<int> p2; p2.x = 1;
-  // p2.y = 1;
-
-  // cout << "polar angle: p2 -> p1 " << test.PolarAngle(p2, p1) <<  "\n";
-
-  // Point<int> p3;
-  // p3.x = 2;
-  // p3.y = 1;
-
-  // cout << "non left turn: " << test.NonLeftTurn(p1, p3, p2) << "\n";
-  // cout << "non left turn: " << test.NonLeftTurn(p1, p2, p3) << "\n";
-
-  // test.CenterP0(test.GetMinYPoint());
-
-  // cout << "begin for loop\n";
-  // for (int i = 0; i < test.points_.size(); i++) {
-  //   cout << i << "\n";
-  //   Point<int> current_point = test.points_[i];
-  //   std::cout << "x, y: " << current_point.x << " " << current_point.y <<
-  //   "\n";
-  // }
+  std::vector<Point<int> > parallel_output;
+  double parallel_min_time =
+      Benchmark(kRuns, SolveSerial<int>, "test-data/test1.in", parallel_output);
+  printf("[Graham-Scan parallel]:\t\t%.3f ms\t%.3fX speedup\n",
+         parallel_min_time * 1000, serial_min_time / parallel_min_time);
+  if (!ValidateSolution(serial_output, parallel_output)) {
+    cout << "Solution did not match serial implementation";
+  }
 }

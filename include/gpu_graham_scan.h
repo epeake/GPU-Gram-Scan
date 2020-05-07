@@ -184,8 +184,72 @@ class GrahamScanSerial {
   /*
    * Gets our convex hull using the graham-scan algorithm.  The hull is stored
    * in the public hull_ variable.
+   *
+   * Serial Implementation
+   *
    */
-  void GetHull() {
+  void GetHullSerial() {
+    CenterP0();
+
+    // sort after the first point (p0)
+    std::sort(points_.begin() + 1, points_.end());
+
+    // count total number of relevant points in points_
+    int total_rel = 1;
+    int curr = 1;
+    int runner = 2;
+    while (runner < points_.size() + 1) {
+      // we only want to keep the furthest elt from p0 where multiple points
+      // have the same polar angle
+      if (runner == points_.size() ||
+          GetTurnDir(points_[curr], points_[runner]) != NONE) {
+        // if points are now not colinear, take the last colinear point and
+        // store it at the last relevant index of points_
+        points_[total_rel] = points_[runner - 1];
+        curr = runner;
+        total_rel++;
+      }
+      runner++;
+    }
+
+    std::stack<Point<Num_Type> > s;
+    s.push(points_[0]);
+    s.push(points_[1]);
+    s.push(points_[2]);
+
+    Point<Num_Type> top, next_to_top, current_point;
+    for (int i = 3; i < total_rel; i++) {
+      top = s.top();
+      s.pop();
+      next_to_top = s.top();
+      current_point = points_[i];
+
+      // while our current point is not to the left of top, relative to
+      // next_to_top
+      while (GetTurnDir(current_point - next_to_top, top - next_to_top) !=
+             LEFT) {
+        top = next_to_top;
+        s.pop();
+        next_to_top = s.top();
+      }
+      s.push(top);
+      s.push(current_point);
+    }
+
+    while (!s.empty()) {
+      hull_.push_back(s.top() + p0_);
+      s.pop();
+    }
+  }
+
+  /*
+   * Gets our convex hull using the graham-scan algorithm.  The hull is stored
+   * in the public hull_ variable.
+   *
+   * Parallel Implementation
+   *
+   */
+  void GetHullParallel() {
     CenterP0();
 
     // sort after the first point (p0)
