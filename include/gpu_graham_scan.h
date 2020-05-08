@@ -20,9 +20,11 @@
 #include <stdio.h>
 
 #include <fstream>
+#include <iostream>
 #include <random>
 #include <stack>
 #include <string>
+#include <thread>
 #include <vector>
 
 namespace gpu_graham_scan {
@@ -283,8 +285,8 @@ class GrahamScanSerial {
    * Parallel Implementation
    *
    */
-  void GetHullParallel() {
-    CenterP0();
+  void GetHullParallel(int num_threads) {
+    CenterP0Parallel_MC(num_threads);
 
     // sort after the first point (p0)
     std::sort(points_.begin() + 1, points_.end());
@@ -442,6 +444,32 @@ class GrahamScanSerial {
   void CenterP0() {
     for (int i = 0; i < points_.size(); i++) {
       points_[i] = points_[i] - p0_;
+    }
+  }
+
+  /*
+   * centers points_ around p0_ so that p0_ is now the origin
+   * a single task for parallel implementation
+   */
+  void CenterP0Task_MC(int id, int num_threads) {
+    for (int i = id; i < points_.size(); i += num_threads) {
+      points_[i] = points_[i] - p0_;
+    }
+  }
+
+  void CenterP0Parallel_MC(int num_threads) {
+    int nThreadsToMake = num_threads - 1;
+    std::thread workers[num_threads - 1];
+
+    for (int i = 0; i < nThreadsToMake; i++) {
+      workers[i] =
+          std::thread(&GrahamScanSerial::CenterP0Task_MC, this, i, num_threads);
+    }
+
+    CenterP0Task_MC(nThreadsToMake, num_threads);
+
+    for (int i = 0; i < nThreadsToMake; i++) {
+      workers[i].join();
     }
   }
 };

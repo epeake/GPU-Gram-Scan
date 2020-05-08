@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Submit CS416 PA1 programs as a job to ada
+
+# Set SLURM options (you should not need to change these)
+#SBATCH --job-name=pa1                          # Job name
+#SBATCH --output=pa1-%j.out                     # Name for output log file (%j is job ID)
+#SBATCH --cpus-per-task=36                      # Request the entire node
+#SBATCH --partition=short                       # Partition (queue) 
+#SBATCH --time=00:05:00                         # Time limit hrs:min:sec
+
+# DONT MODIFY THE SLURM OPTIONS ABOVE THIS LINE
+
+# Print SLURM envirionment variables
+echo "# Job Info ----------------------------"
+echo "Job ID: ${SLURM_JOB_ID}"
+echo "Node: ${SLURMD_NODENAME}"
+echo "Starting: "`date +"%D %T"`
+
+echo -e "\n# Run Results -------------------------"
+
+./project-main
+
+
+
+# For reference, dump info about the processor
+echo -e "\n# CPU Info ----------------------------"
+lscpu

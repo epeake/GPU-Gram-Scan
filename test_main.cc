@@ -6,8 +6,9 @@
 using namespace std;
 using namespace gpu_graham_scan;
 
-int kRuns = 50;
-int kPoints = 10000;
+int kRuns = 5;
+int kPoints = 100000;
+int kThreads = 36;
 
 /*
  * find convex hull for points in input
@@ -25,7 +26,7 @@ std::vector<Point<Num_Type> > SolveSerial(GrahamScanSerial<Num_Type>* input) {
  */
 template <class Num_Type>
 std::vector<Point<Num_Type> > SolveParallel(GrahamScanSerial<Num_Type>* input) {
-  input->GetHullParallel();
+  input->GetHullParallel(kThreads);
   return input->hull_;
 }
 
@@ -79,7 +80,7 @@ int main() {
 
   std::vector<Point<int> > parallel_output;
   double parallel_min_time =
-      Benchmark(kRuns, SolveSerial<int>, kPoints, parallel_output);
+      Benchmark(kRuns, SolveParallel<int>, kPoints, parallel_output);
   printf("[Graham-Scan parallel]:\t\t%.3f ms\t%.3fX speedup\n",
          parallel_min_time * 1000, serial_min_time / parallel_min_time);
   if (!ValidateSolution(serial_output, parallel_output)) {
