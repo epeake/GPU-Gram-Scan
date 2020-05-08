@@ -110,7 +110,7 @@ template <class Num_Type>
 bool operator<(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
   TurnDir dir = GetTurnDir(p1, p2);
   if (dir == NONE) {
-    return SqrdMagnitude(p1) <= SqrdMagnitude(p2);
+    return SqrdMagnitude(p1) < SqrdMagnitude(p2);
   }
   return dir == RIGHT;
 }

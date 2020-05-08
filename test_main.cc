@@ -6,8 +6,8 @@
 using namespace std;
 using namespace gpu_graham_scan;
 
-int kRuns = 3;
-int kPoints = 5;
+int kRuns = 50;
+int kPoints = 10000;
 
 /*
  * find convex hull for points in input
