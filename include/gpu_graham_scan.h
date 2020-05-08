@@ -225,11 +225,19 @@ class GrahamScanSerial {
    *
    */
   void GetHullSerial() {
+    double start_time = CycleTimer::currentSeconds();
     CenterP0();
+    double end_time = CycleTimer::currentSeconds();
+    printf("[CenterP0 - Serial]:\t\t%.3f ms\n", (end_time - start_time) * 1000);
 
     // sort after the first point (p0)
+    start_time = CycleTimer::currentSeconds();
     std::sort(points_.begin() + 1, points_.end());
+    end_time = CycleTimer::currentSeconds();
+    printf("[Sort Points - Serial]:\t\t%.3f ms\n",
+           (end_time - start_time) * 1000);
 
+    start_time = CycleTimer::currentSeconds();
     // count total number of relevant points in points_
     int total_rel = 1;
     int curr = 1;
@@ -247,7 +255,11 @@ class GrahamScanSerial {
       }
       runner++;
     }
+    end_time = CycleTimer::currentSeconds();
+    printf("[Get Relevant Points - Serial]:\t\t%.3f ms\n",
+           (end_time - start_time) * 1000);
 
+    start_time = CycleTimer::currentSeconds();
     std::stack<Point<Num_Type> > s;
     s.push(points_[0]);
     s.push(points_[1]);
@@ -271,6 +283,9 @@ class GrahamScanSerial {
       s.push(top);
       s.push(current_point);
     }
+    end_time = CycleTimer::currentSeconds();
+    printf("[Stack Algorithm - Serial]:\t\t%.3f ms\n\n",
+           (end_time - start_time) * 1000);
 
     while (!s.empty()) {
       hull_.push_back(s.top() + p0_);
