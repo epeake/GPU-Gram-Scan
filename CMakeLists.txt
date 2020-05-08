@@ -66,6 +66,12 @@ endif()
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+set(headerFiles 
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gpu_graham_scan.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gpu_graham_scan_test.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/cuda-util.h
+)
+
 set_source_files_properties(
     tasksys.cc
     PROPERTIES
@@ -93,23 +99,14 @@ endif()
 include_directories(${CUB_INCLUDE_DIRS})
 
 
-
-# Add current directory to include search path (so tests can find headers)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
 find_package(Boost
   COMPONENTS unit_test_framework
   REQUIRED
 )
 
-include_directories(${Boost_INCLUDE_DIRS})
-message(STATUS "Found Boost: ${Boost_VERSION}")
-
-# Modify this file as you need for your project (modeled on the most relevant assignment), e.g.
-# uncomment the following and add the relevant files for your project
 add_executable(project-main
   test_main.cc
-  gpu_graham_scan.cc
+  ${headerFiles}
 )
 
 
@@ -123,6 +120,7 @@ enable_testing()
 # Prep ourselves for compiling boost
 find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 include_directories (${Boost_INCLUDE_DIRS})
+message(STATUS "Found Boost: ${Boost_VERSION}")
 
 # Keep test files in a separate source directory called test
 file(GLOB TEST_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} test/*.cc)
@@ -134,7 +132,7 @@ foreach(testSrc ${TEST_SRCS})
   get_filename_component(testName ${testSrc} NAME_WE)
 
   # Add compile target
-  add_executable(${testName} ${testSrc})
+  add_executable(${testName} ${testSrc} ${headerFiles})
 
   # link to Boost libraries AND your targets and dependencies
   target_link_libraries(${testName} ${Boost_LIBRARIES})
@@ -152,6 +150,7 @@ foreach(testSrc ${TEST_SRCS})
         add_test(NAME "${testName}.${subTestName}" 
                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/testBin
                  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/testBin/${testName}
+                 --log_level=message
                  --run_test=${subTestName} --catch_system_error=yes)
     endforeach()
 

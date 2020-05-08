@@ -1,6 +1,3 @@
-#include <algorithm>
-
-#include "CycleTimer.h"
 #pragma once
 
 #ifndef _GPU_Graham_Scan_
@@ -19,10 +16,14 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include <algorithm>
 #include <fstream>
+#include <random>
 #include <stack>
 #include <string>
 #include <vector>
+
+#include "CycleTimer.h"
 
 namespace gpu_graham_scan {
 
@@ -109,7 +110,7 @@ template <class Num_Type>
 bool operator<(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
   TurnDir dir = GetTurnDir(p1, p2);
   if (dir == NONE) {
-    return SqrdMagnitude(p1) <= SqrdMagnitude(p2);
+    return SqrdMagnitude(p1) < SqrdMagnitude(p2);
   }
   return dir == RIGHT;
 }
@@ -164,6 +165,39 @@ class GrahamScanSerial {
    */
   GrahamScanSerial(const char* filename) : filename_(filename) { ReadFile(); };
 
+  /*
+   * Constructor to generate n points on the fly
+   *
+   * n is the number of points to generate
+   */
+  GrahamScanSerial(size_t n) {
+    // fixed seed so data doesn't have to be stored
+    std::default_random_engine generator(0);
+    std::normal_distribution<double> distribution(0.0, 100.0);
+
+    points_.resize(n);
+    size_t idx = 0;
+    Point<Num_Type> curr_min;
+    for (size_t i = 0; i < n; i++) {
+      Point<Num_Type> current_point;
+      current_point.x_ = distribution(generator);
+      current_point.y_ = distribution(generator);
+
+      if (i == 0) {
+        curr_min = current_point;
+      }
+
+      // update the current minumim point's index and value
+      if ((current_point.y_ == curr_min.y_ && current_point.x_ < curr_min.x_) ||
+          current_point.y_ < curr_min.y_ || idx == 0) {
+        curr_min = current_point;
+      }
+
+      points_[i] = current_point;
+    }
+    p0_ = curr_min;
+  }
+
   ~GrahamScanSerial() {}
 
   /*
@@ -179,22 +213,25 @@ class GrahamScanSerial {
   /*
    * our convex hull
    */
-  std::vector<Point<Num_Type> > hull_;  // TODO what is this before gethull?
+  std::vector<Point<Num_Type> > hull_;
 
   /*
    * Gets our convex hull using the graham-scan algorithm.  The hull is stored
    * in the public hull_ variable.
+   *
+   * Serial Implementation
+   *
    */
-  void GetHull() {
+  void GetHullSerial() {
     CenterP0();
 
     // sort after the first point (p0)
     std::sort(points_.begin() + 1, points_.end());
 
     // count total number of relevant points in points_
-    int total_rel = 1;
-    int curr = 1;
-    int runner = 2;
+    size_t total_rel = 1;
+    size_t curr = 1;
+    size_t runner = 2;
     while (runner < points_.size() + 1) {
       // we only want to keep the furthest elt from p0 where multiple points
       // have the same polar angle
@@ -215,7 +252,68 @@ class GrahamScanSerial {
     s.push(points_[2]);
 
     Point<Num_Type> top, next_to_top, current_point;
-    for (int i = 3; i < total_rel; i++) {
+    for (size_t i = 3; i < total_rel; i++) {
+      top = s.top();
+      s.pop();
+      next_to_top = s.top();
+      current_point = points_[i];
+
+      // while our current point is not to the left of top, relative to
+      // next_to_top
+      while (GetTurnDir(current_point - next_to_top, top - next_to_top) !=
+             LEFT) {
+        top = next_to_top;
+        s.pop();
+        next_to_top = s.top();
+      }
+      s.push(top);
+      s.push(current_point);
+    }
+
+    while (!s.empty()) {
+      hull_.push_back(s.top() + p0_);
+      s.pop();
+    }
+  }
+
+  /*
+   * Gets our convex hull using the graham-scan algorithm.  The hull is stored
+   * in the public hull_ variable.
+   *
+   * Parallel Implementation
+   *
+   */
+  void GetHullParallel() {
+    CenterP0();
+
+    // sort after the first point (p0)
+    std::sort(points_.begin() + 1, points_.end());
+
+    // count total number of relevant points in points_
+    size_t total_rel = 1;
+    size_t curr = 1;
+    size_t runner = 2;
+    while (runner < points_.size() + 1) {
+      // we only want to keep the furthest elt from p0 where multiple points
+      // have the same polar angle
+      if (runner == points_.size() ||
+          GetTurnDir(points_[curr], points_[runner]) != NONE) {
+        // if points are now not colinear, take the last colinear point and
+        // store it at the last relevant index of points_
+        points_[total_rel] = points_[runner - 1];
+        curr = runner;
+        total_rel++;
+      }
+      runner++;
+    }
+
+    std::stack<Point<Num_Type> > s;
+    s.push(points_[0]);
+    s.push(points_[1]);
+    s.push(points_[2]);
+
+    Point<Num_Type> top, next_to_top, current_point;
+    for (size_t i = 3; i < total_rel; i++) {
       top = s.top();
       s.pop();
       next_to_top = s.top();
@@ -254,7 +352,7 @@ class GrahamScanSerial {
     try {
       std::string curr_line;
       std::ifstream infile;
-      int idx = 0;
+      size_t idx = 0;
 
       infile.open(filename_);
       if (errno != 0) {
@@ -271,7 +369,7 @@ class GrahamScanSerial {
         exit(EXIT_FAILURE);
       }
 
-      int total_points = stoi(curr_line);
+      size_t total_points = stoi(curr_line);
 
       if (total_points < 4) {
         GPU_GS_PRINT_ERR("Less than four points in input file");
@@ -282,7 +380,7 @@ class GrahamScanSerial {
 
       // process each line individually of the file
       Point<Num_Type> curr_min;
-      int min_y_idx = 0;
+      size_t min_y_idx = 0;
       while (!infile.eof()) {
         getline(infile, curr_line);
         if (infile.fail()) {
@@ -290,7 +388,7 @@ class GrahamScanSerial {
           perror("getline");
           exit(EXIT_FAILURE);
         }
-        int comma_idx = curr_line.find(',');
+        size_t comma_idx = curr_line.find(',');
         std::string first_num = curr_line.substr(0, comma_idx);
         std::string second_num =
             curr_line.substr(comma_idx + 1, curr_line.length());
@@ -342,7 +440,7 @@ class GrahamScanSerial {
    * centers points_ around p0_ so that p0_ is now the origin
    */
   void CenterP0() {
-    for (int i = 0; i < points_.size(); i++) {
+    for (size_t i = 0; i < points_.size(); i++) {
       points_[i] = points_[i] - p0_;
     }
   }
