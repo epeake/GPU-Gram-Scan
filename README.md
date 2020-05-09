@@ -9,4 +9,4 @@ figure out how to do on gpu with psudocode. get a good idea and now feel like fu
 
 figure that out.  got a good idea also wrote some edge cases I need to look out for like non-power-of-2 and how to handle
 
-implement everything but the kernels, getting blocka nd threads down.
+implement everything but the kernels, getting blocka nd threads down. realized that way more complicated wifuring out getting block size ask mike for help start to devise new way of partitioning blocks and chunks
