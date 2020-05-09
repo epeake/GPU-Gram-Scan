@@ -1,10 +1,19 @@
+#include <iostream>
 #include <vector>
 
 #include "cuda-util.h"
 #include "gpu_graham_scan.h"
 
+const uint kMaxThreads = 1024;
+const uint kTotalSMs = 46;
+const uint kMaxThreadsSpan = kMaxThreads * kTotalSMs * 2;
+
 template <class Num_Type>
-__global__ void BitonicSortPointsKernel() {}
+__global__ void BuildBitonic(size_t start_size) {
+  while (start_size > 1) {
+    start_size >>= 1;
+  }
+}
 
 template <class Num_Type>
 void gpu_graham_scan::BitonicSortPoints(
@@ -32,17 +41,37 @@ void gpu_graham_scan::BitonicSortPoints(
   cudaErrorCheck(cudaMemcpy(d_ys, ys, n_points * sizeof(Num_Type),
                             cudaMemcpyHostToDevice));
 
-  // // blocks in X and Y directions
-  // const int BX = ((image.width_ - 1) / TX) + 1;
-  // const int BY = ((image.height_ - 1) / TY) + 1;
+  // round up to the the power of 2 to get our upper bound
+  size_t upper_bound = n_points;
+  uint power = 0;
+  while (upper_bound) {
+    upper_bound >>= 1;
+    power++;
+  }
+  size_t curr_bound = 1 << (power - 1);
+  upper_bound = (curr_bound < n_points) ? (curr_bound << 1) : curr_bound;
 
-  // // Compute the width and height of each pixel in normalized [0,1]
-  // coordinates const float x_width = 1.f / image.width_; const float y_width
-  // = 1.f / image.height_;
+  for (size_t i = 2, j = i; i <= upper_bound; i *= 2, j = i) {
+    std::cout << j << '\n';
+    size_t chunks;
+    size_t threads_per_chunk;
+    if (j > kMaxThreadsSpan) {
+      chunks = 1;
+      threads_per_chunk = 1;
+    } else {
+      chunks = (n_points + j - 1) / j;
+      threads_per_chunk = j >> 1;
+    }
 
-  // BitonicSortPointsKernel<<<dim3(BX, BY), dim3(TX, TY)>>>(
-  //     n_circles, d_circles_position, d_circles_radius, d_circles_color,
-  //     image.width_, image.height_, x_width, y_width, d_image_data);
+    // BuildBitonic<<<>>>;
+    j >>= 1;
+    while (j > 1) {
+      std::cout << j << '\n';
+      // sort bionic
+      // BitonicSortPointsKernel<<<dim3(BX, BY), dim3(TX, TY)>>>();
+      j >>= 1;
+    }
+  }
 
   // Copy points back to host
   cudaErrorCheck(cudaMemcpy(xs, d_xs, n_points * sizeof(Num_Type),

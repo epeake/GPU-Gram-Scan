@@ -19,6 +19,7 @@ echo "Starting: "`date +"%D %T"`
 echo -e "\n# Run Results -------------------------"
 ./project-main
 
+echo yep
 # For reference, dump info about the GPUs and processor
 # echo -e "\n# CPU Info ----------------------------"
 # nvidia-smi
