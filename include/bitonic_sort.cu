@@ -19,26 +19,19 @@ template <class Num_Type>
 void gpu_graham_scan::BitonicSortPoints(
     std::vector<gpu_graham_scan::Point<Num_Type>> points) {
   size_t n_points = points.size();
-  Num_Type xs[n_points];
-  Num_Type ys[n_points];
 
-  for (size_t i = 0; i < n_points; i++) {
-    gpu_graham_scan::Point<Num_Type> curr = points[i];
-    xs[i] = curr.x_;
-    ys[i] = curr.y_;
-  }
+  // underlying array of points to put onto GPU
+  gpu_graham_scan::Point<Num_Type>* points_arr = points.data();
 
   // Allocate device data
-  Num_Type* d_xs;
-  Num_Type* d_ys;
+  Num_Type* d_points;
 
-  cudaErrorCheck(cudaMalloc(&d_xs, n_points * sizeof(Num_Type)));
-  cudaErrorCheck(cudaMalloc(&d_ys, n_points * sizeof(Num_Type)));
+  cudaErrorCheck(cudaMalloc(
+      &d_points, n_points * sizeof(gpu_graham_scan::Point<Num_Type>)));
 
   // points to device
-  cudaErrorCheck(cudaMemcpy(d_xs, xs, n_points * sizeof(Num_Type),
-                            cudaMemcpyHostToDevice));
-  cudaErrorCheck(cudaMemcpy(d_ys, ys, n_points * sizeof(Num_Type),
+  cudaErrorCheck(cudaMemcpy(d_points, points_arr,
+                            n_points * sizeof(gpu_graham_scan::Point<Num_Type>),
                             cudaMemcpyHostToDevice));
 
   // round up to the the power of 2 to get our upper bound
@@ -52,7 +45,6 @@ void gpu_graham_scan::BitonicSortPoints(
   upper_bound = (curr_bound < n_points) ? (curr_bound << 1) : curr_bound;
 
   for (size_t i = 2, j = i; i <= upper_bound; i *= 2, j = i) {
-    std::cout << j << '\n';
     size_t chunks;
     size_t threads_per_chunk;
     if (j > kMaxThreadsSpan) {
@@ -63,25 +55,24 @@ void gpu_graham_scan::BitonicSortPoints(
       threads_per_chunk = j >> 1;
     }
 
+    // each chunk thread until chunk size == ...
+
     // BuildBitonic<<<>>>;
     j >>= 1;
     while (j > 1) {
-      std::cout << j << '\n';
       // sort bionic
       // BitonicSortPointsKernel<<<dim3(BX, BY), dim3(TX, TY)>>>();
       j >>= 1;
     }
   }
 
-  // Copy points back to host
-  cudaErrorCheck(cudaMemcpy(xs, d_xs, n_points * sizeof(Num_Type),
-                            cudaMemcpyDeviceToHost));
-  cudaErrorCheck(cudaMemcpy(ys, d_ys, n_points * sizeof(Num_Type),
+  // Copy points back to host points to device
+  cudaErrorCheck(cudaMemcpy(points_arr, d_points,
+                            n_points * sizeof(gpu_graham_scan::Point<Num_Type>),
                             cudaMemcpyDeviceToHost));
 
   // Cleanup device data
-  cudaErrorCheck(cudaFree(d_xs));
-  cudaErrorCheck(cudaFree(d_ys));
+  cudaErrorCheck(cudaFree(d_points));
 }
 
 template void gpu_graham_scan::BitonicSortPoints(
