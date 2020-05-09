@@ -38,6 +38,9 @@ struct Point {
   Point(Num_Type x = 0, Num_Type y = 0) : x_(x), y_(y) {}
 };
 
+template <class Num_Type>
+void BitonicSortPoints(std::vector<gpu_graham_scan::Point<Num_Type>> points);
+
 /*
  * the directions we can turn in, used when seeing if two points make a
  * right, left, or no turn
@@ -208,12 +211,12 @@ class GrahamScanSerial {
   /*
    * all of our points from the file
    */
-  std::vector<Point<Num_Type> > points_;
+  std::vector<Point<Num_Type>> points_;
 
   /*
    * our convex hull
    */
-  std::vector<Point<Num_Type> > hull_;
+  std::vector<Point<Num_Type>> hull_;
 
   /*
    * Gets our convex hull using the graham-scan algorithm.  The hull is stored
@@ -246,7 +249,7 @@ class GrahamScanSerial {
       runner++;
     }
 
-    std::stack<Point<Num_Type> > s;
+    std::stack<Point<Num_Type>> s;
     s.push(points_[0]);
     s.push(points_[1]);
     s.push(points_[2]);
@@ -307,7 +310,7 @@ class GrahamScanSerial {
       runner++;
     }
 
-    std::stack<Point<Num_Type> > s;
+    std::stack<Point<Num_Type>> s;
     s.push(points_[0]);
     s.push(points_[1]);
     s.push(points_[2]);

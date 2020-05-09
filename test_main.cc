@@ -22,4 +22,5 @@ int main() {
   if (!gpu_graham_scan_test::ValidateSolution(serial_output, parallel_output)) {
     std::cout << "Solution did not match serial implementation";
   }
+  gpu_graham_scan::BitonicSortPoints(parallel_output);
 }
