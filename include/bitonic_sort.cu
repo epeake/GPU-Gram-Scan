@@ -9,6 +9,26 @@ const uint kChunksPerBlock = 256;
 const uint kTotalSMs = 46;
 const uint kMaxThreadsSpan = kMaxThreads * kTotalSMs * 2;
 
+/*
+ * see if p1 is "less" than p2
+ */
+template <class Num_Type>
+__device__ bool comparePoints(const gpu_graham_scan::Point<Num_Type> p1,
+                              const gpu_graham_scan::Point<Num_Type> p2) {
+  // cross product of 2 points
+  Num_Type x_product = (p1.x_ * p2.y_) - (p2.x_ * p1.y_);
+
+  if (x_product > 0) {
+    return true;
+  }
+  if (x_product == 0) {
+    Num_Type sq_mag_p1 = (p1.x_ * p1.x_) + (p1.y_ * p1.y_);
+    Num_Type sq_mag_p2 = (p2.x_ * p2.x_) + (p2.y_ * p2.y_);
+    return sq_mag_p1 < sq_mag_p2;
+  }
+  return false;
+}
+
 template <class Num_Type>
 __global__ void BuildBitonic(size_t n_points,
                              gpu_graham_scan::Point<Num_Type>* d_points,
@@ -16,8 +36,8 @@ __global__ void BuildBitonic(size_t n_points,
   size_t first = threadIdx.x + (blockIdx.x * (chunk_size * blockDim.x));
   size_t last = first + chunk_size - 1;
 
-  while (first != last) {
-    if (d_points[last] < d_points[first]) {
+  while (first < last) {
+    if (comparePoints(d_points[first], d_points[last])) {
       gpu_graham_scan::Point<Num_Type> tmp = d_points[last];
       d_points[last] = d_points[first];
       d_points[first] = tmp;
@@ -98,3 +118,9 @@ template void __global__ BuildBitonic(size_t n_points,
 template void __global__ BuildBitonic(size_t n_points,
                                       gpu_graham_scan::Point<double>* d_points,
                                       size_t chunk_size);
+
+template __device__ bool comparePoints(const gpu_graham_scan::Point<int> p1,
+                                       const gpu_graham_scan::Point<int> p2);
+
+template __device__ bool comparePoints(const gpu_graham_scan::Point<double> p1,
+                                       const gpu_graham_scan::Point<double> p2);

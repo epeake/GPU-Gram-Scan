@@ -23,6 +23,6 @@ int main() {
     std::cout << "Solution did not match serial implementation";
   }
 
-  gpu_graham_scan::GrahamScanSerial<int> lol(5);
+  gpu_graham_scan::GrahamScanSerial<int> lol(kPoints);
   gpu_graham_scan::BitonicSortPoints(lol.points_);
 }
