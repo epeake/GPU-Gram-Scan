@@ -183,7 +183,7 @@ class GrahamScanSerial {
 
     // fixed seed so data doesn't have to be stored
     std::default_random_engine generator(0);
-    std::uniform_real_distribution<double> distribution(-100000.0, 100000.0);
+    std::uniform_real_distribution<double> distribution(0, 100000.0);
 
     points_.resize(n);
     Point<Num_Type> curr_min;
@@ -235,6 +235,8 @@ class GrahamScanSerial {
    */
   std::vector<Point<Num_Type>> hull_;
 
+  Point<Num_Type> p0_;
+
   /*
    * Gets our convex hull using the graham-scan algorithm.  The hull is stored
    * in the public hull_ variable.
@@ -250,7 +252,7 @@ class GrahamScanSerial {
 
     // sort after the first point (p0)
     start_time = CycleTimer::currentSeconds();
-    std::sort(points_.begin() + 1, points_.end());
+    std::sort(points_.begin(), points_.end()); // should be points_begin + 1
     end_time = CycleTimer::currentSeconds();
     printf("[Sort Points - Serial]:\t\t%.3f ms\n",
            (end_time - start_time) * 1000);
@@ -282,10 +284,10 @@ class GrahamScanSerial {
     s.push(points_[1]);
     s.push(points_[2]);
 
-    std::cout << "\n p0_ x,y: " <<p0_.x_ << " , " << p0_.y_;
-    std::cout << "\n points_[0] x,y: " << points_[0].x_ + p0_.x_<< " , " << points_[0].y_+p0_.y_;
-    std::cout << "\n points_[1] x,y: " << points_[1].x_ + p0_.x_<< " , " << points_[1].y_+p0_.y_;
-    std::cout << "\n points_[2] x,y: " << points_[2].x_ + p0_.x_<< " , " << points_[2].y_+p0_.y_;
+    // std::cout << "\n p0_ x,y: " <<p0_.x_ << " , " << p0_.y_;
+    // std::cout << "\n points_[0] x,y: " << points_[0].x_ + p0_.x_<< " , " << points_[0].y_+p0_.y_;
+    // std::cout << "\n points_[1] x,y: " << points_[1].x_ + p0_.x_<< " , " << points_[1].y_+p0_.y_;
+    // std::cout << "\n points_[2] x,y: " << points_[2].x_ + p0_.x_<< " , " << points_[2].y_+p0_.y_;
     
 
     Point<Num_Type> top, next_to_top, current_point;
@@ -379,7 +381,7 @@ class GrahamScanSerial {
   }
 
  private:
-  Point<Num_Type> p0_;
+  
 
   GrahamScanSerial(void);
 
