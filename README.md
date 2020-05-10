@@ -18,4 +18,6 @@ let's actually do this now. actually somehow did it I think but now need to test
 
 testing the sort. does not work.  when made k=5 realized all the correct comparisons were happening, but not all the correst swaps, think something wrong with comparator
 
-enlist mike and debug
+enlist mike and debug. no clue, made a bunch of debug print statements and still no clue
+
+try som more. realize it is affected by the number of threads per block.

@@ -39,10 +39,7 @@ struct Point {
 };
 
 template <class Num_Type>
-void BitonicSortPoints(std::vector<Point<Num_Type>> points);
-
-template <class Num_Type>
-bool comparePoints(const Point<Num_Type> p1, const Point<Num_Type> p2);
+void BitonicSortPoints(std::vector<Point<Num_Type>>& points);
 
 /*
  * the directions we can turn in, used when seeing if two points make a
@@ -183,7 +180,7 @@ class GrahamScanSerial {
 
     // fixed seed so data doesn't have to be stored
     std::default_random_engine generator(0);
-    std::uniform_real_distribution<double> distribution(-5.0, 5.0);
+    std::uniform_real_distribution<double> distribution(1.0, 10000.0);
 
     points_.resize(n);
     Point<Num_Type> curr_min;
