@@ -5,7 +5,7 @@
 #include "gpu_graham_scan_test.h"
 
 int kRuns = 50;
-int kPoints = 10000000;
+int kPoints = 5;
 
 int main() {
   std::vector<gpu_graham_scan::Point<int> > serial_output;
@@ -22,7 +22,32 @@ int main() {
   if (!gpu_graham_scan_test::ValidateSolution(serial_output, parallel_output)) {
     std::cout << "Solution did not match serial implementation";
   }
-  std::cout << parallel_output.size() << '\n';
+
   gpu_graham_scan::GrahamScanSerial<int> lol(kPoints);
   gpu_graham_scan::BitonicSortPoints(lol.points_);
+
+  gpu_graham_scan::GrahamScanSerial<int> lol2(kPoints);
+  std::cout << "correct before: \n\n";
+  std::cout << "p0: " << lol2.points_[0].x_ << " " << lol2.points_[0].y_
+            << '\n';
+  std::cout << "p1: " << lol2.points_[1].x_ << " " << lol2.points_[1].y_
+            << '\n';
+  std::cout << "p2: " << lol2.points_[2].x_ << " " << lol2.points_[2].y_
+            << '\n';
+  std::cout << "p3: " << lol2.points_[3].x_ << " " << lol2.points_[3].y_
+            << '\n';
+  std::cout << "p4: " << lol2.points_[4].x_ << " " << lol2.points_[4].y_
+            << '\n';
+  std::sort(lol2.points_.begin(), lol2.points_.end());
+  std::cout << "correct after: \n";
+  std::cout << "p0: " << lol2.points_[0].x_ << " " << lol2.points_[0].y_
+            << '\n';
+  std::cout << "p1: " << lol2.points_[1].x_ << " " << lol2.points_[1].y_
+            << '\n';
+  std::cout << "p2: " << lol2.points_[2].x_ << " " << lol2.points_[2].y_
+            << '\n';
+  std::cout << "p3: " << lol2.points_[3].x_ << " " << lol2.points_[3].y_
+            << '\n';
+  std::cout << "p4: " << lol2.points_[4].x_ << " " << lol2.points_[4].y_
+            << '\n';
 }

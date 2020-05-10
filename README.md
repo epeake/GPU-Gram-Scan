@@ -14,4 +14,6 @@ implement everything but the kernels, getting blocka nd threads down. realized t
 ran into errors with cuda and c++... 
 ran into errors with cuda and c++... also bug fix in n random and error checking
 
-let's actually do this now
+let's actually do this now. actually somehow did it I think but now need to test
+
+testing the sort 

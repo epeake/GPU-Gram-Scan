@@ -4,11 +4,6 @@
 #include "cuda-util.h"
 #include "gpu_graham_scan.h"
 
-const uint kMaxThreads = 1024;
-const uint kChunksPerBlock = 32;
-const uint kTotalSMs = 46;
-const uint kMaxThreadsSpan = kMaxThreads * kTotalSMs * 2;
-
 /*
  * see if p1 is "less" than p2
  */
@@ -30,17 +25,59 @@ __device__ bool comparePoints(const gpu_graham_scan::Point<Num_Type> p1,
 }
 
 template <class Num_Type>
-__global__ void BuildBitonic(size_t n_points,
-                             gpu_graham_scan::Point<Num_Type>* d_points,
-                             size_t chunk_size) {}
+__global__ void BuildBitonicKernel(size_t n_points,
+                                   gpu_graham_scan::Point<Num_Type>* d_points,
+                                   size_t threads_per_chunk, size_t chunk_len) {
+  // should have 1/2 as many total threads as points
+  size_t true_idx = threadIdx.x + (blockIdx.x * blockDim.x);
+  size_t chunk_offset = (true_idx / threads_per_chunk) * chunk_len;
+  size_t thread_offset = true_idx % threads_per_chunk;
+  size_t first = thread_offset + chunk_offset;
+  size_t last = (chunk_offset + chunk_len - 1) - thread_offset;
+  if (first < n_points) printf("bbfirst: %lu last: %lu\n", first, last);
+  if (last < n_points && comparePoints(d_points[first], d_points[last])) {
+    printf("bfirst: %lu last: %lu\n", first, last);
+    gpu_graham_scan::Point<Num_Type> tmp = d_points[last];
+    d_points[last] = d_points[first];
+    d_points[first] = tmp;
+  }
+}
+
+template <class Num_Type>
+__global__ void BitonicSortKernel(size_t n_points,
+                                  gpu_graham_scan::Point<Num_Type>* d_points,
+                                  size_t threads_per_chunk, size_t chunk_len) {
+  // should have 1/2 as many total threads as points
+  size_t true_idx = threadIdx.x + (blockIdx.x * blockDim.x);
+  size_t chunk_offset = (true_idx / threads_per_chunk) * chunk_len;
+  size_t thread_offset = true_idx % threads_per_chunk;
+  size_t first = thread_offset + chunk_offset;
+  size_t last = first + threads_per_chunk;
+  if (first < n_points) printf("ssfirst: %lu last: %lu\n", first, last);
+  if (last < n_points && comparePoints(d_points[first], d_points[last])) {
+    printf("sfirst: %lu last: %lu\n", first, last);
+    gpu_graham_scan::Point<Num_Type> tmp = d_points[last];
+    d_points[last] = d_points[first];
+    d_points[first] = tmp;
+  }
+}
 
 template <class Num_Type>
 void gpu_graham_scan::BitonicSortPoints(
     std::vector<gpu_graham_scan::Point<Num_Type>> points) {
+  const uint kThreadsPerBlock = 128;  // Max kThreadsPerBlock = 1024;
   size_t n_points = points.size();
+  size_t total_threads = (n_points + 1) / 2;
 
   // underlying array of points to put onto GPU
   gpu_graham_scan::Point<Num_Type>* points_arr = points.data();
+
+  std::cout << "before: \n";
+  std::cout << "p0: " << points_arr[0].x_ << " " << points_arr[0].y_ << '\n';
+  std::cout << "p1: " << points_arr[1].x_ << " " << points_arr[1].y_ << '\n';
+  std::cout << "p2: " << points_arr[2].x_ << " " << points_arr[2].y_ << '\n';
+  std::cout << "p3: " << points_arr[3].x_ << " " << points_arr[3].y_ << '\n';
+  std::cout << "p4: " << points_arr[4].x_ << " " << points_arr[4].y_ << '\n';
 
   // Allocate device data
   gpu_graham_scan::Point<Num_Type>* d_points;
@@ -64,25 +101,35 @@ void gpu_graham_scan::BitonicSortPoints(
   upper_bound = (curr_bound < n_points) ? (curr_bound << 1) : curr_bound;
 
   double start_time = CycleTimer::currentSeconds();
-  // switch when chunk count => threads hits 256
+  std::cout << "running...\n";
   for (size_t i = 2, j = i; i <= upper_bound; i *= 2, j = i) {
-    size_t chunks = (n_points + j - 1) / j;
-    size_t chunk_size = j >> 1;
-
-    // each thread gets its own chunk
-    // each block has multiple chunks
-    // BuildBitonic<<<(chunks + kChunksPerBlock - 1) / kChunksPerBlock,
-    //                kChunksPerBlock>>>(n_points, d_points, chunk_size);
+    size_t threads_per_chunk = j >> 1;
+    std::cout << "build"
+              << " n_points: " << n_points
+              << " threads_per_chunk: " << threads_per_chunk << " j: " << j
+              << "\n";
+    BuildBitonicKernel<<<(total_threads + kThreadsPerBlock - 1) /
+                             kThreadsPerBlock,
+                         kThreadsPerBlock>>>(n_points, d_points,
+                                             threads_per_chunk, j);
 
     // wait for build to finish
     cudaErrorCheck(cudaDeviceSynchronize());
     j >>= 1;
     while (j > 1) {
-      // sort bionic
-      // BitonicSortPointsKernel<<<dim3(BX, BY), dim3(TX, TY)>>>();
+      threads_per_chunk = j >> 1;
+      std::cout << "sort"
+                << " n_points: " << n_points
+                << " threads_per_chunk: " << threads_per_chunk << " j: " << j
+                << "\n";
+      BitonicSortKernel<<<(total_threads + kThreadsPerBlock - 1) /
+                              kThreadsPerBlock,
+                          kThreadsPerBlock>>>(n_points, d_points,
+                                              threads_per_chunk, j);
       j >>= 1;
     }
   }
+  std::cout << "\n\n";
   double end_time = CycleTimer::currentSeconds();
   printf("[Build Bitonic]:\t%.3f ms\n", (end_time - start_time) * 1000);
 
@@ -93,6 +140,13 @@ void gpu_graham_scan::BitonicSortPoints(
 
   // Cleanup device data
   cudaErrorCheck(cudaFree(d_points));
+
+  std::cout << "after: \n";
+  std::cout << "p0: " << points_arr[0].x_ << " " << points_arr[0].y_ << '\n';
+  std::cout << "p1: " << points_arr[1].x_ << " " << points_arr[1].y_ << '\n';
+  std::cout << "p2: " << points_arr[2].x_ << " " << points_arr[2].y_ << '\n';
+  std::cout << "p3: " << points_arr[3].x_ << " " << points_arr[3].y_ << '\n';
+  std::cout << "p4: " << points_arr[4].x_ << " " << points_arr[4].y_ << '\n';
 }
 
 template void gpu_graham_scan::BitonicSortPoints(
@@ -101,13 +155,21 @@ template void gpu_graham_scan::BitonicSortPoints(
 template void gpu_graham_scan::BitonicSortPoints(
     std::vector<gpu_graham_scan::Point<double>> points);
 
-template void __global__ BuildBitonic(size_t n_points,
-                                      gpu_graham_scan::Point<int>* d_points,
-                                      size_t chunk_size);
+template void __global__
+BuildBitonicKernel(size_t n_points, gpu_graham_scan::Point<int>* d_points,
+                   size_t threads_per_chunk, size_t chunk_len);
 
-template void __global__ BuildBitonic(size_t n_points,
-                                      gpu_graham_scan::Point<double>* d_points,
-                                      size_t chunk_size);
+template void __global__
+BuildBitonicKernel(size_t n_points, gpu_graham_scan::Point<double>* d_points,
+                   size_t threads_per_chunk, size_t chunk_len);
+
+template __global__ void BitonicSortKernel(
+    size_t n_points, gpu_graham_scan::Point<int>* d_points,
+    size_t threads_per_chunk, size_t chunk_len);
+
+template __global__ void BitonicSortKernel(
+    size_t n_points, gpu_graham_scan::Point<double>* d_points,
+    size_t threads_per_chunk, size_t chunk_len);
 
 template __device__ bool comparePoints(const gpu_graham_scan::Point<int> p1,
                                        const gpu_graham_scan::Point<int> p2);
