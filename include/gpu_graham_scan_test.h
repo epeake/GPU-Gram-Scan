@@ -31,7 +31,8 @@ template <class Num_Type>
 bool ValidateSolution(std::vector<gpu_graham_scan::Point<Num_Type> >& soln1,
                       std::vector<gpu_graham_scan::Point<Num_Type> >& soln2) {
   if (soln1.size() != soln2.size()) {
-    fprintf(stderr, "Hulls have different numbers of elements");
+    fprintf(stderr, "Hulls have different numbers of elements \n soln1.size:%d \t soln2.size:%d", (int)soln1.size(), (int)soln2.size());
+
     return false;
   }
 
@@ -43,6 +44,7 @@ bool ValidateSolution(std::vector<gpu_graham_scan::Point<Num_Type> >& soln1,
   size_t i = 0;
   while (i < soln1.size()) {
     if (soln1[i] != soln2[i]) {
+      std::cout << "Difference occured at point " << i << "\n";
       return false;
     }
     i++;

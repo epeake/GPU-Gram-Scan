@@ -302,11 +302,12 @@ class GrahamScanSerial {
    * Parallel Implementation
    *
    */
-  void GetHullParallel(int num_threads) {
-    CenterP0Parallel_MC(num_threads);
+  void GetHullParallel() {
+    CenterP0();
 
     // sort after the first point (p0)
-    std::sort(points_.begin() + 1, points_.end());
+    // std::sort(points_.begin() + 1, points_.end());
+    gpu_graham_scan::BitonicSortPoints(points_);
 
     // count total number of relevant points in points_
     size_t total_rel = 1;
