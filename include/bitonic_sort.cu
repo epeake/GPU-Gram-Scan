@@ -46,7 +46,7 @@ template <class Num_Type>
       gpu_graham_scan::Point<Num_Type> partner = d_points[partner_elt];
       
       // gpu_graham_scan::Point<Num_Type> newPoint = gpu_graham_scan::Point<int> ::operator +(partner);
-      if (comparePoints(current, partner)) {
+      if (!comparePoints(current, partner)) {
         d_points[elt_of_interest] = current;
         d_points[partner_elt] = partner;
       } else {
@@ -74,7 +74,7 @@ template <class Num_Type>
       gpu_graham_scan::Point<Num_Type> partner = d_points[partner_elt];
       
       // gpu_graham_scan::Point<Num_Type> newPoint = gpu_graham_scan::Point<int> ::operator +(partner);
-      if (comparePoints(current, partner)) {
+      if (!comparePoints(current, partner)) {
         d_points[elt_of_interest] = current;
         d_points[partner_elt] = partner;
       } else {
