@@ -5,7 +5,7 @@
 #include "gpu_graham_scan.h"
 
 const uint kMaxThreads = 1024;
-const uint kChunksPerBlock = 256;
+const uint kChunksPerBlock = 32;
 const uint kTotalSMs = 46;
 const uint kMaxThreadsSpan = kMaxThreads * kTotalSMs * 2;
 
@@ -76,6 +76,7 @@ void gpu_graham_scan::BitonicSortPoints(
   size_t curr_bound = 1 << (power - 1);
   upper_bound = (curr_bound < n_points) ? (curr_bound << 1) : curr_bound;
 
+  double start_time = CycleTimer::currentSeconds();
   // switch when chunk count => threads hits 256
   for (size_t i = 2, j = i; i <= upper_bound; i *= 2, j = i) {
     size_t chunks = (n_points + j - 1) / j;
@@ -95,6 +96,8 @@ void gpu_graham_scan::BitonicSortPoints(
       j >>= 1;
     }
   }
+  double end_time = CycleTimer::currentSeconds();
+  printf("[Build Bitonic]:\t%.3f ms\n", (end_time - start_time) * 1000);
 
   // Copy points back to host points to device
   cudaErrorCheck(cudaMemcpy(points_arr, d_points,
