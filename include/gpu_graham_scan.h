@@ -39,7 +39,10 @@ struct Point {
 };
 
 template <class Num_Type>
-void BitonicSortPoints(std::vector<gpu_graham_scan::Point<Num_Type>> points);
+void BitonicSortPoints(std::vector<Point<Num_Type>> points);
+
+template <class Num_Type>
+bool comparePoints(const Point<Num_Type> p1, const Point<Num_Type> p2);
 
 /*
  * the directions we can turn in, used when seeing if two points make a
@@ -145,8 +148,7 @@ Num_Type XProduct(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
  * calculate the squared magnitude of a vector
  *
  * params:
- *  p1: our first point
- *  p2: our second point
+ *  p: our point
  *
  * returns:
  *  Num_Type: our squared magnitude

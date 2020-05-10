@@ -50,4 +50,11 @@ int main() {
             << '\n';
   std::cout << "p4: " << lol2.points_[4].x_ << " " << lol2.points_[4].y_
             << '\n';
+
+  gpu_graham_scan::Point<int> p1(-4, -4);
+  gpu_graham_scan::Point<int> p2(4, 0);
+
+  std::cout << "should be true: " << (p2 < p1) << '\n';
+  std::cout << "should be true: " << gpu_graham_scan::comparePoints(p2, p1)
+            << '\n';
 }

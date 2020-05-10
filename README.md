@@ -16,4 +16,6 @@ ran into errors with cuda and c++... also bug fix in n random and error checking
 
 let's actually do this now. actually somehow did it I think but now need to test
 
-testing the sort 
+testing the sort. does not work.  when made k=5 realized all the correct comparisons were happening, but not all the correst swaps, think something wrong with comparator
+
+enlist mike and debug
