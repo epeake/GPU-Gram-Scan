@@ -181,27 +181,31 @@ class GrahamScanSerial {
     std::normal_distribution<double> distribution(0.0, 100.0);
 
     points_.resize(n);
-    size_t idx = 0;
+    // size_t idx = 0;
     Point<Num_Type> curr_min;
     for (size_t i = 0; i < n; i++) {
       Point<Num_Type> current_point;
       current_point.x_ = distribution(generator);
       current_point.y_ = distribution(generator);
 
-      if (i == 0) {
-        curr_min = current_point;
-      }
+      
 
       // update the current minumim point's index and value
       if ((current_point.y_ == curr_min.y_ && current_point.x_ < curr_min.x_) ||
-          current_point.y_ < curr_min.y_ || idx == 0) {
+          current_point.y_ < curr_min.y_ || i == 0) {
         curr_min = current_point;
       }
 
+      std::cout << "\n" << i << "\n";
+      std::cout << "current point: " << current_point.x_ << " , " << current_point.y_ << "\n";
+      std::cout << "curr_min x,y: " <<curr_min.x_ << " , " << curr_min.y_;
+
       points_[i] = current_point;
     }
+    std::cout << "\n points generated \n"; 
     p0_ = curr_min;
   }
+  
 
   ~GrahamScanSerial() {}
 
@@ -266,6 +270,12 @@ class GrahamScanSerial {
     s.push(points_[0]);
     s.push(points_[1]);
     s.push(points_[2]);
+
+    std::cout << "\n p0_ x,y: " <<p0_.x_ << " , " << p0_.y_;
+    std::cout << "\n points_[0] x,y: " << points_[0].x_ + p0_.x_<< " , " << points_[0].y_+p0_.y_;
+    std::cout << "\n points_[1] x,y: " << points_[1].x_ + p0_.x_<< " , " << points_[1].y_+p0_.y_;
+    std::cout << "\n points_[2] x,y: " << points_[2].x_ + p0_.x_<< " , " << points_[2].y_+p0_.y_;
+    
 
     Point<Num_Type> top, next_to_top, current_point;
     for (size_t i = 3; i < total_rel; i++) {
