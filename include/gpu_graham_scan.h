@@ -176,17 +176,22 @@ class GrahamScanSerial {
    * n is the number of points to generate
    */
   GrahamScanSerial(size_t n) {
+    if (n < 4) {
+      GPU_GS_PRINT_ERR("Less than four points chosen");
+      exit(EXIT_FAILURE);
+    }
+
     // fixed seed so data doesn't have to be stored
     std::default_random_engine generator(0);
-    std::normal_distribution<double> distribution(0.0, 100.0);
+    std::uniform_real_distribution<double> distribution(-100000.0, 100000.0);
 
     points_.resize(n);
-    // size_t idx = 0;
     Point<Num_Type> curr_min;
+    size_t min_y_idx = 0;
     for (size_t i = 0; i < n; i++) {
       Point<Num_Type> current_point;
-      current_point.x_ = distribution(generator);
-      current_point.y_ = distribution(generator);
+      current_point.x_ = static_cast<Num_Type>(distribution(generator));
+      current_point.y_ = static_cast<Num_Type>(distribution(generator));
 
       
 
@@ -194,6 +199,7 @@ class GrahamScanSerial {
       if ((current_point.y_ == curr_min.y_ && current_point.x_ < curr_min.x_) ||
           current_point.y_ < curr_min.y_ || i == 0) {
         curr_min = current_point;
+        min_y_idx = i;
       }
 
       std::cout << "\n" << i << "\n";
@@ -204,6 +210,11 @@ class GrahamScanSerial {
     }
     std::cout << "\n points generated \n"; 
     p0_ = curr_min;
+
+    // make sure that the current min is the first element of the array
+    Point<Num_Type> tmp = points_[0];
+    points_[0] = points_[min_y_idx];
+    points_[min_y_idx] = tmp;
   }
   
 
@@ -474,33 +485,7 @@ class GrahamScanSerial {
       points_[i] = points_[i] - p0_;
     }
   }
-
-  /*
-   * centers points_ around p0_ so that p0_ is now the origin
-   * a single task for parallel implementation
-   */
-  void CenterP0Task_MC(int id, int num_threads) {
-    for (int i = id; i < points_.size(); i += num_threads) {
-      points_[i] = points_[i] - p0_;
-    }
-  }
-
-  void CenterP0Parallel_MC(int num_threads) {
-    int nThreadsToMake = num_threads - 1;
-    std::thread workers[num_threads - 1];
-
-    for (int i = 0; i < nThreadsToMake; i++) {
-      workers[i] =
-          std::thread(&GrahamScanSerial::CenterP0Task_MC, this, i, num_threads);
-    }
-
-    CenterP0Task_MC(nThreadsToMake, num_threads);
-
-    for (int i = 0; i < nThreadsToMake; i++) {
-      workers[i].join();
-    }
-  }
-};
+};  // namespace gpu_graham_scan
 
 }  // namespace gpu_graham_scan
 

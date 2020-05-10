@@ -4,8 +4,13 @@
 #include "gpu_graham_scan.h"
 #include "gpu_graham_scan_test.h"
 
+<<<<<<< HEAD
 int kRuns = 3;
 int kPoints = 100000;
+=======
+int kRuns = 50;
+int kPoints = 10000000;
+>>>>>>> 55e9c97eb3ebddc1e49cf4352e1156566da8a4d3
 
 int main() {
   std::vector<gpu_graham_scan::Point<double> > serial_output;
@@ -22,7 +27,7 @@ int main() {
   if (!gpu_graham_scan_test::ValidateSolution(serial_output, parallel_output)) {
     std::cout << "Solution did not match serial implementation \n";
   }
-
+  std::cout << parallel_output.size() << '\n';
   gpu_graham_scan::GrahamScanSerial<int> lol(kPoints);
   gpu_graham_scan::BitonicSortPoints(lol.points_);
 }
