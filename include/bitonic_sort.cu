@@ -32,20 +32,7 @@ __device__ bool comparePoints(const gpu_graham_scan::Point<Num_Type> p1,
 template <class Num_Type>
 __global__ void BuildBitonic(size_t n_points,
                              gpu_graham_scan::Point<Num_Type>* d_points,
-                             size_t chunk_size) {
-  size_t first = threadIdx.x + (blockIdx.x * (chunk_size * blockDim.x));
-  size_t last = first + chunk_size - 1;
-
-  while (first < last) {
-    if (comparePoints(d_points[first], d_points[last])) {
-      gpu_graham_scan::Point<Num_Type> tmp = d_points[last];
-      d_points[last] = d_points[first];
-      d_points[first] = tmp;
-    }
-    first++;
-    last--;
-  }
-}
+                             size_t chunk_size) {}
 
 template <class Num_Type>
 void gpu_graham_scan::BitonicSortPoints(
@@ -84,8 +71,8 @@ void gpu_graham_scan::BitonicSortPoints(
 
     // each thread gets its own chunk
     // each block has multiple chunks
-    BuildBitonic<<<(chunks + kChunksPerBlock - 1) / kChunksPerBlock,
-                   kChunksPerBlock>>>(n_points, d_points, chunk_size);
+    // BuildBitonic<<<(chunks + kChunksPerBlock - 1) / kChunksPerBlock,
+    //                kChunksPerBlock>>>(n_points, d_points, chunk_size);
 
     // wait for build to finish
     cudaErrorCheck(cudaDeviceSynchronize());
