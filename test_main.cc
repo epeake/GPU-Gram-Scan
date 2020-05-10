@@ -4,7 +4,7 @@
 #include "gpu_graham_scan.h"
 #include "gpu_graham_scan_test.h"
 
-int kRuns = 50;
+int kRuns = 3;
 int kPoints = 100000;
 
 int main() {

@@ -46,7 +46,7 @@ template <class Num_Type>
       gpu_graham_scan::Point<Num_Type> partner = d_points[partner_elt];
       
       // gpu_graham_scan::Point<Num_Type> newPoint = gpu_graham_scan::Point<int> ::operator +(partner);
-      if (current.x_ < partner.x_) {
+      if (comparePoints(current, partner)) {
         d_points[elt_of_interest] = current;
         d_points[partner_elt] = partner;
       } else {
@@ -90,10 +90,12 @@ void gpu_graham_scan::BitonicSortPoints(
     size_t chunks = (n_points + j - 1) / j;
     size_t chunk_size = j >> 1;
 
+    int blocks_per_chunk = (chunk_size / kMaxThreads) + 1;
+
+
     // each thread gets its own chunk
     // each block has multiple chunks
-    // BuildBitonic<<<(chunks + kChunksPerBlock - 1) / kChunksPerBlock,
-    //                kChunksPerBlock>>>(n_points, d_points, chunk_size);
+    BuildBitonic<<<dim3(blocks_per_chunk*chunks), dim3(kMaxThreads)>>>(n_points, d_points, blocks_per_chunk, chunk_size);
 
     // wait for build to finish
     cudaErrorCheck(cudaDeviceSynchronize());
