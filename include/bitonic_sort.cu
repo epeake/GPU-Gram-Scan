@@ -32,18 +32,11 @@ __global__ void BuildBitonicKernel(size_t n_points,
   size_t first = thread_offset + chunk_offset;
   size_t last = (chunk_offset + chunk_len - 1) - thread_offset;
   if (last < n_points && comparePoints(d_points[last], d_points[first])) {
-    // printf("bfirst: %lu last: %lu    p1: %d %d  p2: %d %d \n", first, last,
-    //        d_points[first].x_, d_points[first].y_, d_points[last].x_,
-    //        d_points[last].y_);
     gpu_graham_scan::Point<Num_Type> tmp = d_points[last];
     d_points[last] = d_points[first];
     d_points[first] = tmp;
   } else if (last < n_points &&
              !comparePoints(d_points[last], d_points[first])) {
-    // printf("no bfirst: %lu last: %lu    p1: %d %d  p2: %d %d \n", first,
-    // last,
-    //        d_points[first].x_, d_points[first].y_, d_points[last].x_,
-    //        d_points[last].y_);
   }
 }
 
@@ -76,8 +69,7 @@ __global__ void BitonicSortKernel(size_t n_points,
 template <class Num_Type>
 void gpu_graham_scan::BitonicSortPoints(
     gpu_graham_scan::Point<Num_Type>* points_arr, size_t n_points) {
-  const uint kThreadsPerBlock = 4;  // Max kThreadsPerBlock = 1024;
-  size_t total_threads = (n_points + 1) / 2;
+  const uint threads_per_block = 1024;  // Max threads_per_block = 1024;
 
   // Allocate device data
   gpu_graham_scan::Point<Num_Type>* d_points;
@@ -100,22 +92,23 @@ void gpu_graham_scan::BitonicSortPoints(
   size_t curr_bound = 1 << (power - 1);
   upper_bound = (curr_bound < n_points) ? (curr_bound << 1) : curr_bound;
 
+  size_t total_threads = upper_bound >> 1;
   for (size_t i = 2, j = i; i <= upper_bound; i *= 2, j = i) {
     size_t threads_per_chunk = j >> 1;
-    BuildBitonicKernel<<<(total_threads + kThreadsPerBlock - 1) /
-                             kThreadsPerBlock,
-                         kThreadsPerBlock>>>(n_points, d_points,
-                                             threads_per_chunk, j);
+    BuildBitonicKernel<<<(total_threads + threads_per_block - 1) /
+                             threads_per_block,
+                         threads_per_block>>>(n_points, d_points,
+                                              threads_per_chunk, j);
 
     // wait for build to finish
     cudaErrorCheck(cudaDeviceSynchronize());
     j >>= 1;
     while (j > 1) {
       threads_per_chunk = j >> 1;
-      BitonicSortKernel<<<(total_threads + kThreadsPerBlock - 1) /
-                              kThreadsPerBlock,
-                          kThreadsPerBlock>>>(n_points, d_points,
-                                              threads_per_chunk, j);
+      BitonicSortKernel<<<(total_threads + threads_per_block - 1) /
+                              threads_per_block,
+                          threads_per_block>>>(n_points, d_points,
+                                               threads_per_chunk, j);
       cudaErrorCheck(cudaDeviceSynchronize());
       j >>= 1;
     }

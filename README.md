@@ -21,3 +21,5 @@ testing the sort. does not work.  when made k=5 realized all the correct compari
 enlist mike and debug. no clue, made a bunch of debug print statements and still no clue
 
 try som more. realize it is affected by the number of threads per block.
+
+try some more. realized that parameter for num-threads that we were passing to the kernels was actually incorrect, it was array size/2 rounded up but should have been upper_bount / 2
