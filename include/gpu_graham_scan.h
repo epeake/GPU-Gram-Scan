@@ -39,7 +39,7 @@ struct Point {
 };
 
 template <class Num_Type>
-void BitonicSortPoints(std::vector<Point<Num_Type>>& points);
+void BitonicSortPoints(Point<Num_Type>* points, size_t n_points);
 
 /*
  * the directions we can turn in, used when seeing if two points make a
@@ -300,7 +300,7 @@ class GrahamScanSerial {
     CenterP0();
 
     // sort after the first point (p0)
-    std::sort(points_.begin() + 1, points_.end());
+    gpu_graham_scan::BitonicSortPoints(points_.data() + 1, points_.size() - 1);
 
     // count total number of relevant points in points_
     size_t total_rel = 1;

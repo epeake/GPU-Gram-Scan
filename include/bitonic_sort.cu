@@ -1,6 +1,3 @@
-#include <iostream>
-#include <vector>
-
 #include "cuda-util.h"
 #include "gpu_graham_scan.h"
 
@@ -78,13 +75,9 @@ __global__ void BitonicSortKernel(size_t n_points,
 
 template <class Num_Type>
 void gpu_graham_scan::BitonicSortPoints(
-    std::vector<gpu_graham_scan::Point<Num_Type>>& points) {
-  const uint kThreadsPerBlock = 1;  // Max kThreadsPerBlock = 1024;
-  size_t n_points = points.size();
+    gpu_graham_scan::Point<Num_Type>* points_arr, size_t n_points) {
+  const uint kThreadsPerBlock = 4;  // Max kThreadsPerBlock = 1024;
   size_t total_threads = (n_points + 1) / 2;
-
-  // underlying array of points to put onto GPU
-  gpu_graham_scan::Point<Num_Type>* points_arr = points.data();
 
   // Allocate device data
   gpu_graham_scan::Point<Num_Type>* d_points;
@@ -107,8 +100,6 @@ void gpu_graham_scan::BitonicSortPoints(
   size_t curr_bound = 1 << (power - 1);
   upper_bound = (curr_bound < n_points) ? (curr_bound << 1) : curr_bound;
 
-  double start_time = CycleTimer::currentSeconds();
-  std::cout << "running...\n";
   for (size_t i = 2, j = i; i <= upper_bound; i *= 2, j = i) {
     size_t threads_per_chunk = j >> 1;
     BuildBitonicKernel<<<(total_threads + kThreadsPerBlock - 1) /
@@ -129,9 +120,6 @@ void gpu_graham_scan::BitonicSortPoints(
       j >>= 1;
     }
   }
-  std::cout << "\n\n";
-  double end_time = CycleTimer::currentSeconds();
-  printf("[Build Bitonic]:\t%.3f ms\n", (end_time - start_time) * 1000);
 
   // Copy points back to host points to device
   cudaErrorCheck(cudaMemcpy(points_arr, d_points,
@@ -143,10 +131,10 @@ void gpu_graham_scan::BitonicSortPoints(
 }
 
 template void gpu_graham_scan::BitonicSortPoints(
-    std::vector<gpu_graham_scan::Point<int>>& points);
+    gpu_graham_scan::Point<int>* points_arr, size_t n_points);
 
 template void gpu_graham_scan::BitonicSortPoints(
-    std::vector<gpu_graham_scan::Point<double>>& points);
+    gpu_graham_scan::Point<double>* points_arr, size_t n_points);
 
 template void __global__
 BuildBitonicKernel(size_t n_points, gpu_graham_scan::Point<int>* d_points,
