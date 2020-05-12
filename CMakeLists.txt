@@ -67,6 +67,7 @@ endif()
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set(headerFiles 
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/bitonic_sort.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gpu_graham_scan.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gpu_graham_scan_test.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/cuda-util.h

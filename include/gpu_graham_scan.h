@@ -38,6 +38,9 @@ struct Point {
   Point(Num_Type x = 0, Num_Type y = 0) : x_(x), y_(y) {}
 };
 
+template <class Num_Type>
+void BitonicSortPoints(Point<Num_Type>* points, size_t n_points);
+
 /*
  * the directions we can turn in, used when seeing if two points make a
  * right, left, or no turn
@@ -142,8 +145,7 @@ Num_Type XProduct(const Point<Num_Type>& p1, const Point<Num_Type>& p2) {
  * calculate the squared magnitude of a vector
  *
  * params:
- *  p1: our first point
- *  p2: our second point
+ *  p: our point
  *
  * returns:
  *  Num_Type: our squared magnitude
@@ -171,17 +173,22 @@ class GrahamScanSerial {
    * n is the number of points to generate
    */
   GrahamScanSerial(size_t n) {
+    if (n < 4) {
+      GPU_GS_PRINT_ERR("Less than four points chosen");
+      exit(EXIT_FAILURE);
+    }
+
     // fixed seed so data doesn't have to be stored
     std::default_random_engine generator(0);
-    std::normal_distribution<double> distribution(0.0, 100.0);
+    std::uniform_real_distribution<double> distribution(1.0, 10000.0);
 
     points_.resize(n);
-    size_t idx = 0;
     Point<Num_Type> curr_min;
+    size_t min_y_idx = 0;
     for (size_t i = 0; i < n; i++) {
       Point<Num_Type> current_point;
-      current_point.x_ = distribution(generator);
-      current_point.y_ = distribution(generator);
+      current_point.x_ = static_cast<Num_Type>(distribution(generator));
+      current_point.y_ = static_cast<Num_Type>(distribution(generator));
 
       if (i == 0) {
         curr_min = current_point;
@@ -189,13 +196,19 @@ class GrahamScanSerial {
 
       // update the current minumim point's index and value
       if ((current_point.y_ == curr_min.y_ && current_point.x_ < curr_min.x_) ||
-          current_point.y_ < curr_min.y_ || idx == 0) {
+          current_point.y_ < curr_min.y_ || i == 0) {
         curr_min = current_point;
+        min_y_idx = i;
       }
 
       points_[i] = current_point;
     }
     p0_ = curr_min;
+
+    // make sure that the current min is the first element of the array
+    Point<Num_Type> tmp = points_[0];
+    points_[0] = points_[min_y_idx];
+    points_[min_y_idx] = tmp;
   }
 
   ~GrahamScanSerial() {}
@@ -208,12 +221,12 @@ class GrahamScanSerial {
   /*
    * all of our points from the file
    */
-  std::vector<Point<Num_Type> > points_;
+  std::vector<Point<Num_Type>> points_;
 
   /*
    * our convex hull
    */
-  std::vector<Point<Num_Type> > hull_;
+  std::vector<Point<Num_Type>> hull_;
 
   /*
    * Gets our convex hull using the graham-scan algorithm.  The hull is stored
@@ -246,7 +259,7 @@ class GrahamScanSerial {
       runner++;
     }
 
-    std::stack<Point<Num_Type> > s;
+    std::stack<Point<Num_Type>> s;
     s.push(points_[0]);
     s.push(points_[1]);
     s.push(points_[2]);
@@ -287,7 +300,7 @@ class GrahamScanSerial {
     CenterP0();
 
     // sort after the first point (p0)
-    std::sort(points_.begin() + 1, points_.end());
+    gpu_graham_scan::BitonicSortPoints(points_.data() + 1, points_.size() - 1);
 
     // count total number of relevant points in points_
     size_t total_rel = 1;
@@ -307,7 +320,7 @@ class GrahamScanSerial {
       runner++;
     }
 
-    std::stack<Point<Num_Type> > s;
+    std::stack<Point<Num_Type>> s;
     s.push(points_[0]);
     s.push(points_[1]);
     s.push(points_[2]);
@@ -444,7 +457,7 @@ class GrahamScanSerial {
       points_[i] = points_[i] - p0_;
     }
   }
-};
+};  // namespace gpu_graham_scan
 
 }  // namespace gpu_graham_scan
 
