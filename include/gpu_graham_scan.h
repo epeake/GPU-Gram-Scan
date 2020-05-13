@@ -336,7 +336,10 @@ class GrahamScanSerial {
    *
    */
   void GetHullSerial() {
+    double start_time = CycleTimer::currentSeconds();
     CenterP0();
+    double end_time = CycleTimer::currentSeconds();
+    std::cout << "center ser: " << (end_time - start_time) * 1000 << " ms\n";
 
     // sort after the first point (p0)
     std::sort(points_ + 1, points_ + n_);
@@ -396,13 +399,15 @@ class GrahamScanSerial {
    *
    */
   void GetHullParallel() {
-    // testt<Num_Type>();
-    CenterP0Parallel();
-
     double start_time = CycleTimer::currentSeconds();
+    CenterP0Parallel();
+    double end_time = CycleTimer::currentSeconds();
+    std::cout << "center: " << (end_time - start_time) * 1000 << " ms\n";
+
+    start_time = CycleTimer::currentSeconds();
     // sort after the first point (p0)
     gpu_graham_scan::BitonicSortPoints(points_ + 1, n_ - 1);
-    double end_time = CycleTimer::currentSeconds();
+    end_time = CycleTimer::currentSeconds();
     std::cout << "sort: " << (end_time - start_time) * 1000 << " ms\n";
 
     // count total number of relevant points in points_
@@ -475,8 +480,16 @@ class GrahamScanSerial {
   void CenterP0Parallel() {
     if (std::is_same<Num_Type, int32_t>::value) {
       // x values are on the even indicies
-      __m256i x_mask = _mm256_set1_epi32(0xaaaaaaaa);
+
+      // TODO: error check _mm_malloc
+      Point<Num_Type>* pre_x_mask =
+          (Point<Num_Type>*)_mm_malloc(4 * sizeof(Point<Num_Type>), 32);
+      for (int i = 0; i < 4; i++) {
+        pre_x_mask[i] = Point<Num_Type>(0xffffffff, 0);
+      }
+
       __m256i load_mask = _mm256_set1_epi32(0xffffffff);
+      __m256i x_mask = _mm256_maskload_epi32((int32_t*)pre_x_mask, load_mask);
 
       // assemble our p0 vector
       __m256i p0_x_v = _mm256_set1_epi32(p0_.x_);
@@ -486,27 +499,12 @@ class GrahamScanSerial {
 
       int32_t* p = (int32_t*)points_;
 
-      // for (size_t i = 0; i < n_ * 2 - 2; i++) {
-      //   *(p + i) = i;
-      // }
-
-      // p0_.x_ = -1;
-      // p0_.y_ = -3;
-
-      // for (size_t i = 0; i < n_; i++) {
-      //   std::cout << points_[i].x_ << " " << points_[i].y_ << " \n";
-      // }
-
 #pragma omp for nowait
       for (size_t i = 0; i < n_ * 2; i += 8) {
         __m256i curr_vals = _mm256_maskload_epi32(p + i, load_mask);
         _mm256_maskstore_epi32(p + i, load_mask,
                                _mm256_sub_epi32(curr_vals, p0_v));
       }
-
-      // for (size_t i = 0; i < n_; i++) {
-      //   std::cout << points_[i].x_ << " " << points_[i].y_ << " \n";
-      // }
     }
 
     // if (std::is_same<Num_Type, float>::value) {

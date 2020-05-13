@@ -6,7 +6,7 @@
 #include "gpu_graham_scan_test.h"
 
 int kRuns = 5;
-int kPoints = 10;
+int kPoints = 10000000;
 
 int main() {
   std::vector<gpu_graham_scan::Point<int32_t>> serial_output;

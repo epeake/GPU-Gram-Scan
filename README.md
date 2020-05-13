@@ -12,6 +12,7 @@ figure that out.  got a good idea also wrote some edge cases I need to look out 
 implement everything but the kernels, getting blocka nd threads down. realized that way more complicated wifuring out getting block size ask mike for help start to devise new way of partitioning blocks and chunks.
 
 ran into errors with cuda and c++... 
+
 ran into errors with cuda and c++... also bug fix in n random and error checking
 
 let's actually do this now. actually somehow did it I think but now need to test
@@ -26,4 +27,6 @@ try some more. realized that parameter for num-threads that we were passing to t
 
 find areas that needed to be sped up. saw little to gain with parallelizing centering but low hanging fruit 1.7 ms -> 1.2 ms for 1 million points.  find relevant 2ms but not really parallelizable so skip
 
-realize that should be using intrinsics
+realize that should be using intrinsics.  try to get it done but segfault
+
+debug and finish. turned off cuda functionality so could use gdb locally and figured out the issue
