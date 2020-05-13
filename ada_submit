@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Set SLURM options (you should not need to change these)
-#SBATCH --job-name=gs                          # Job name
-#SBATCH --output=o-%j.out                     # Name for output log file (%j is job ID)
+#SBATCH --job-name=fp                           # Job name
+#SBATCH --output=o-%j.out                       # Name for output log file (%j is job ID)
 #SBATCH --nodes=1                               # Requesting 1 node and 1 task per node should
 #SBATCH --ntasks-per-node=1                     # ensure exclusive access to the node
 #SBATCH --cpus-per-task=16                      # Limit the job to specified cores
@@ -17,6 +17,7 @@ echo "Node: ${SLURMD_NODENAME}"
 echo "Starting: "`date +"%D %T"`
 
 echo -e "\n# Run Results -------------------------"
+# gdb ./project-main
 ./project-main
 
 echo yep

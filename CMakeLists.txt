@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(cs416_prog CXX)
+project(gpu_graham_scan CXX)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 cmake_policy(SET CMP0074 NEW)
@@ -24,7 +24,9 @@ if (HAVE_ALIGN_VAL)
   add_compile_definitions(HAVE_ALIGN_VAL)
 endif()
 
-set(CMAKE_CXX_FLAGS "-m64 -Wall -O3")
+# set(CMAKE_CXX_FLAGS "-m64 -Wall -march=native -Wno-unknown-pragmas -Wno-unused-function  -O3 -g")
+set(CMAKE_CXX_FLAGS "-m64 -Wall -march=native -Wno-unknown-pragmas -Wno-unused-function  -O3")
+
 
 OPTION(DEFINE_VERBOSE
   "Build the project using verbose code"
@@ -32,18 +34,6 @@ OPTION(DEFINE_VERBOSE
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-
-# ISPC Support
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/AddISPCObject.cmake)
-find_program(ISPC_EXECUTABLE ispc DOC "Path to the ISPC executable.")
-if (NOT ISPC_EXECUTABLE)
-    message(STATUS "Could not find Intel SPMD Compiler (ispc). Make sure you have completed the 'Getting Started' instructions on Canvas.")
-else()
-    message(STATUS "Found Intel SPMD Compiler (ispc): ${ISPC_EXECUTABLE}")
-endif()
-set(ISPC_ARCH "x86-64")
-# Specify arguments (as a list)
-set(ISPC_FLAGS "-O3;--math-lib=default")
 
 # CUDA Support
 include(CheckLanguage)
@@ -61,13 +51,14 @@ else()
   find_package(OpenMP)
 endif()
 if(NOT OpenMP_FOUND)
-  message(STATUS "Could not find compiler with OpenMP support. Make sure you have completed the 'Getting Started' instructions on Canvas.")
+  message(STATUS "Could not find compiler with OpenMP support.")
 endif()
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 set(headerFiles 
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/bitonic_sort.cu
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bitonic_sort.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gpu_graham_scan.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gpu_graham_scan_test.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/cuda-util.h
@@ -79,27 +70,6 @@ set_source_files_properties(
     COMPILE_FLAGS -Wno-unused-function
 )
 
-add_library(common_objs
-    OBJECT
-    tasksys.cc
-)
-target_link_libraries(common_objs PUBLIC Threads::Threads)
-
-
-
-find_package(CBLAS)
-if (NOT CBLAS_FOUND)
-    message(FATAL_ERROR "Could not find CBLAS library. Exiting.")
-endif()
-include_directories(${CBLAS_INCLUDE_DIRS})
-
-find_package(CUB)
-if (NOT CUB_FOUND)
-  message(FATAL_ERROR, "Could not CUB library. Exiting.")
-endif()
-include_directories(${CUB_INCLUDE_DIRS})
-
-
 find_package(Boost
   COMPONENTS unit_test_framework
   REQUIRED
@@ -109,6 +79,9 @@ add_executable(project-main
   test_main.cc
   ${headerFiles}
 )
+if (OpenMP_FOUND)
+  target_link_libraries(project-main PUBLIC OpenMP::OpenMP_CXX)
+endif()
 
 
 # unit testing

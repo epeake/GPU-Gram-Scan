@@ -14,13 +14,16 @@
           __FILE__, __LINE__);
 
 #include <errno.h>
+#include <immintrin.h>
 #include <stdio.h>
 
 #include <algorithm>
 #include <fstream>
+#include <iostream>  // get rid of
 #include <random>
 #include <stack>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "CycleTimer.h"
@@ -162,17 +165,105 @@ Num_Type SqrdMagnitude(const Point<Num_Type>& p) {
 template <class Num_Type>
 class GrahamScanSerial {
  public:
-  /*
-   * Constructor uses points from our file to construct our hull
+  /* Constructor reads all points in from filename_ and stores them in our
+   * points_ array. as we read through the file, we also keep track of the
+   * leftmost/min-y point in our file, which we save as p0_
    */
-  GrahamScanSerial(const char* filename) : filename_(filename) { ReadFile(); };
+  GrahamScanSerial(const char* filename) : filename_(filename) {
+    // only function that throws is stoi/stod so need try/catch
+    try {
+      std::string curr_line;
+      std::ifstream infile;
+      size_t idx = 0;
+
+      infile.open(filename_);
+      if (errno != 0) {
+        GPU_GS_PRINT_ERR_LOC();
+        perror("infile.open");
+        exit(EXIT_FAILURE);
+      }
+
+      // get number of points from first line of file
+      getline(infile, curr_line);
+      if (infile.fail()) {
+        GPU_GS_PRINT_ERR_LOC();
+        perror("getline");
+        exit(EXIT_FAILURE);
+      }
+
+      n_ = stoi(curr_line);
+
+      if (n_ < 4) {
+        GPU_GS_PRINT_ERR("Less than four points in input file");
+        exit(EXIT_FAILURE);
+      }
+
+      points_ = new Point<Num_Type>[n_];
+
+      // process each line individually of the file
+      Point<Num_Type> curr_min;
+      size_t min_y_idx = 0;
+      while (!infile.eof()) {
+        getline(infile, curr_line);
+        if (infile.fail()) {
+          GPU_GS_PRINT_ERR_LOC();
+          perror("getline");
+          exit(EXIT_FAILURE);
+        }
+        size_t comma_idx = curr_line.find(',');
+        std::string first_num = curr_line.substr(0, comma_idx);
+        std::string second_num =
+            curr_line.substr(comma_idx + 1, curr_line.length());
+
+        Point<Num_Type> current_point;
+        current_point.x_ = static_cast<Num_Type>(stod(first_num));
+        current_point.y_ = static_cast<Num_Type>(stod(second_num));
+
+        // update the current minumim point's index and value
+        if ((current_point.y_ == curr_min.y_ &&
+             current_point.x_ < curr_min.x_) ||
+            current_point.y_ < curr_min.y_ || idx == 0) {
+          curr_min = current_point;
+          min_y_idx = idx;
+        }
+
+        points_[idx] = current_point;
+        idx++;
+      }
+
+      p0_ = curr_min;
+
+      // make sure that the current min is the first element of the array
+      Point<Num_Type> tmp = points_[0];
+      points_[0] = points_[min_y_idx];
+      points_[min_y_idx] = tmp;
+
+      if (n_ != idx) {
+        GPU_GS_PRINT_ERR("Incorrect number of points specified by file");
+        exit(EXIT_FAILURE);
+      }
+
+      infile.close();
+      if (infile.fail()) {
+        GPU_GS_PRINT_ERR_LOC();
+        perror("infile.close");
+        exit(EXIT_FAILURE);
+      }
+    } catch (const std::out_of_range& oor) {
+      GPU_GS_PRINT_ERR(oor.what());
+      exit(EXIT_FAILURE);
+    } catch (const std::invalid_argument& ia) {
+      GPU_GS_PRINT_ERR(ia.what());
+      exit(EXIT_FAILURE);
+    }
+  };
 
   /*
-   * Constructor to generate n points on the fly
+   * Constructor to randomly generate n points
    *
    * n is the number of points to generate
    */
-  GrahamScanSerial(size_t n) {
+  GrahamScanSerial(size_t n) : n_(n) {
     if (n < 4) {
       GPU_GS_PRINT_ERR("Less than four points chosen");
       exit(EXIT_FAILURE);
@@ -182,7 +273,11 @@ class GrahamScanSerial {
     std::default_random_engine generator(0);
     std::uniform_real_distribution<double> distribution(1.0, 10000.0);
 
-    points_.resize(n);
+    // Aligned allocation (https://stackoverflow.com/a/32612833) where C++17's
+    // approach with "new" is not working. Here we use an allocater provided
+    // by the intrinsics library (which unfortunately has its own free...).
+    points_ = (Point<Num_Type>*)_mm_malloc(n_ * sizeof(Point<Num_Type>), 32);
+
     Point<Num_Type> curr_min;
     size_t min_y_idx = 0;
     for (size_t i = 0; i < n; i++) {
@@ -211,7 +306,7 @@ class GrahamScanSerial {
     points_[min_y_idx] = tmp;
   }
 
-  ~GrahamScanSerial() {}
+  ~GrahamScanSerial() { _mm_free(points_); }
 
   /*
    * filename of points to be read in
@@ -221,7 +316,12 @@ class GrahamScanSerial {
   /*
    * all of our points from the file
    */
-  std::vector<Point<Num_Type>> points_;
+  Point<Num_Type>* points_;
+
+  /*
+   * length of our points
+   */
+  size_t n_;
 
   /*
    * our convex hull
@@ -239,17 +339,16 @@ class GrahamScanSerial {
     CenterP0();
 
     // sort after the first point (p0)
-    std::sort(points_.begin() + 1, points_.end());
+    std::sort(points_ + 1, points_ + n_);
 
     // count total number of relevant points in points_
     size_t total_rel = 1;
     size_t curr = 1;
     size_t runner = 2;
-    while (runner < points_.size() + 1) {
+    while (runner < n_ + 1) {
       // we only want to keep the furthest elt from p0 where multiple points
       // have the same polar angle
-      if (runner == points_.size() ||
-          GetTurnDir(points_[curr], points_[runner]) != NONE) {
+      if (runner == n_ || GetTurnDir(points_[curr], points_[runner]) != NONE) {
         // if points are now not colinear, take the last colinear point and
         // store it at the last relevant index of points_
         points_[total_rel] = points_[runner - 1];
@@ -297,20 +396,23 @@ class GrahamScanSerial {
    *
    */
   void GetHullParallel() {
-    CenterP0();
+    // testt<Num_Type>();
+    CenterP0Parallel();
 
+    double start_time = CycleTimer::currentSeconds();
     // sort after the first point (p0)
-    gpu_graham_scan::BitonicSortPoints(points_.data() + 1, points_.size() - 1);
+    gpu_graham_scan::BitonicSortPoints(points_ + 1, n_ - 1);
+    double end_time = CycleTimer::currentSeconds();
+    std::cout << "sort: " << (end_time - start_time) * 1000 << " ms\n";
 
     // count total number of relevant points in points_
     size_t total_rel = 1;
     size_t curr = 1;
     size_t runner = 2;
-    while (runner < points_.size() + 1) {
+    while (runner < n_ + 1) {
       // we only want to keep the furthest elt from p0 where multiple points
       // have the same polar angle
-      if (runner == points_.size() ||
-          GetTurnDir(points_[curr], points_[runner]) != NONE) {
+      if (runner == n_ || GetTurnDir(points_[curr], points_[runner]) != NONE) {
         // if points are now not colinear, take the last colinear point and
         // store it at the last relevant index of points_
         points_[total_rel] = points_[runner - 1];
@@ -320,6 +422,7 @@ class GrahamScanSerial {
       runner++;
     }
 
+    start_time = CycleTimer::currentSeconds();
     std::stack<Point<Num_Type>> s;
     s.push(points_[0]);
     s.push(points_[1]);
@@ -348,6 +451,8 @@ class GrahamScanSerial {
       hull_.push_back(s.top() + p0_);
       s.pop();
     }
+    end_time = CycleTimer::currentSeconds();
+    std::cout << "hull: " << (end_time - start_time) * 1000 << " ms\n";
   }
 
  private:
@@ -356,108 +461,65 @@ class GrahamScanSerial {
   GrahamScanSerial(void);
 
   /*
-   * reads all points in from filename_ and stores them in our points_ vecor.
-   * as we read through the file, we also keep track of the leftmost/min-y
-   * point in our file, which we save as p0_
+   * centers points_ around p0_ so that p0_ is now the origin
    */
-  void ReadFile() {
-    // only function that throws is stoi/stod so need try/catch
-    try {
-      std::string curr_line;
-      std::ifstream infile;
-      size_t idx = 0;
-
-      infile.open(filename_);
-      if (errno != 0) {
-        GPU_GS_PRINT_ERR_LOC();
-        perror("infile.open");
-        exit(EXIT_FAILURE);
-      }
-
-      // get number of points from first line of file
-      getline(infile, curr_line);
-      if (infile.fail()) {
-        GPU_GS_PRINT_ERR_LOC();
-        perror("getline");
-        exit(EXIT_FAILURE);
-      }
-
-      size_t total_points = stoi(curr_line);
-
-      if (total_points < 4) {
-        GPU_GS_PRINT_ERR("Less than four points in input file");
-        exit(EXIT_FAILURE);
-      }
-
-      points_.resize(total_points);
-
-      // process each line individually of the file
-      Point<Num_Type> curr_min;
-      size_t min_y_idx = 0;
-      while (!infile.eof()) {
-        getline(infile, curr_line);
-        if (infile.fail()) {
-          GPU_GS_PRINT_ERR_LOC();
-          perror("getline");
-          exit(EXIT_FAILURE);
-        }
-        size_t comma_idx = curr_line.find(',');
-        std::string first_num = curr_line.substr(0, comma_idx);
-        std::string second_num =
-            curr_line.substr(comma_idx + 1, curr_line.length());
-
-        Point<Num_Type> current_point;
-        current_point.x_ = static_cast<Num_Type>(stod(first_num));
-        current_point.y_ = static_cast<Num_Type>(stod(second_num));
-
-        // update the current minumim point's index and value
-        if ((current_point.y_ == curr_min.y_ &&
-             current_point.x_ < curr_min.x_) ||
-            current_point.y_ < curr_min.y_ || idx == 0) {
-          curr_min = current_point;
-          min_y_idx = idx;
-        }
-
-        points_[idx] = current_point;
-        idx++;
-      }
-
-      p0_ = curr_min;
-
-      // make sure that the current min is the first element of the array
-      Point<Num_Type> tmp = points_[0];
-      points_[0] = points_[min_y_idx];
-      points_[min_y_idx] = tmp;
-
-      if (total_points != idx) {
-        GPU_GS_PRINT_ERR("Incorrect number of points specified by file");
-        exit(EXIT_FAILURE);
-      }
-
-      infile.close();
-      if (infile.fail()) {
-        GPU_GS_PRINT_ERR_LOC();
-        perror("infile.close");
-        exit(EXIT_FAILURE);
-      }
-    } catch (const std::out_of_range& oor) {
-      GPU_GS_PRINT_ERR(oor.what());
-      exit(EXIT_FAILURE);
-    } catch (const std::invalid_argument& ia) {
-      GPU_GS_PRINT_ERR(ia.what());
-      exit(EXIT_FAILURE);
+  void CenterP0() {
+    for (size_t i = 0; i < n_; i++) {
+      points_[i] = points_[i] - p0_;
     }
   }
 
   /*
    * centers points_ around p0_ so that p0_ is now the origin
    */
-  void CenterP0() {
-    for (size_t i = 0; i < points_.size(); i++) {
-      points_[i] = points_[i] - p0_;
+  void CenterP0Parallel() {
+    if (std::is_same<Num_Type, int32_t>::value) {
+      // x values are on the even indicies
+      __m256i x_mask = _mm256_set1_epi32(0xaaaaaaaa);
+      __m256i load_mask = _mm256_set1_epi32(0xffffffff);
+
+      // assemble our p0 vector
+      __m256i p0_x_v = _mm256_set1_epi32(p0_.x_);
+      __m256i p0_y_v = _mm256_set1_epi32(p0_.y_);
+      __m256i p0_v = _mm256_or_si256(_mm256_and_si256(x_mask, p0_x_v),
+                                     _mm256_andnot_si256(x_mask, p0_y_v));
+
+      int32_t* p = (int32_t*)points_;
+
+      // for (size_t i = 0; i < n_ * 2 - 2; i++) {
+      //   *(p + i) = i;
+      // }
+
+      // p0_.x_ = -1;
+      // p0_.y_ = -3;
+
+      // for (size_t i = 0; i < n_; i++) {
+      //   std::cout << points_[i].x_ << " " << points_[i].y_ << " \n";
+      // }
+
+#pragma omp for nowait
+      for (size_t i = 0; i < n_ * 2; i += 8) {
+        __m256i curr_vals = _mm256_maskload_epi32(p + i, load_mask);
+        _mm256_maskstore_epi32(p + i, load_mask,
+                               _mm256_sub_epi32(curr_vals, p0_v));
+      }
+
+      // for (size_t i = 0; i < n_; i++) {
+      //   std::cout << points_[i].x_ << " " << points_[i].y_ << " \n";
+      // }
     }
+
+    // if (std::is_same<Num_Type, float>::value) {
+    // __m256 x = _mm256_set1_ps(p0_.x_);
+    // __m256 y = _mm256_set1_ps(p0_.y_);
+    // std::cout << "I am a float";
+    // }
+    // #pragma omp for nowait
+    //     for (size_t i = 0; i < n_; i++) {
+    //       points_[i] = points_[i] - p0_;
+    //     }
   }
-};  // namespace gpu_graham_scan
+};
 
 }  // namespace gpu_graham_scan
 

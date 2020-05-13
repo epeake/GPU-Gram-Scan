@@ -23,3 +23,7 @@ enlist mike and debug. no clue, made a bunch of debug print statements and still
 try som more. realize it is affected by the number of threads per block.
 
 try some more. realized that parameter for num-threads that we were passing to the kernels was actually incorrect, it was array size/2 rounded up but should have been upper_bount / 2
+
+find areas that needed to be sped up. saw little to gain with parallelizing centering but low hanging fruit 1.7 ms -> 1.2 ms for 1 million points.  find relevant 2ms but not really parallelizable so skip
+
+realize that should be using intrinsics
