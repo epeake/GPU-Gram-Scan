@@ -18,7 +18,6 @@ OPTION(DEFINE_VERBOSE
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-
 # CUDA Support
 include(CheckLanguage)
 check_language(CUDA)
@@ -27,7 +26,6 @@ if(CMAKE_CUDA_COMPILER)
 else()
   message(STATUS "Could not find the CUDA compiler and toolkit. If you have CUDA-compatible GPU install the CUDA compiler/toolkit.")
 endif()
-
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -39,18 +37,15 @@ set(headerFiles
   ${CMAKE_CURRENT_SOURCE_DIR}/include/cuda-util.h
 )
 
-
-
 find_package(Boost
   COMPONENTS unit_test_framework
   REQUIRED
 )
 
-add_executable(project-main
-  test_main.cc
+add_executable(benchmark
+  benchmark_main.cc
   ${headerFiles}
 )
-
 
 # unit testing
 # adapted from https://www.neyasystems.com/2014/06/20/an-engineers-guide-to-unit-testing-cmake-and-boost-unit-tests/

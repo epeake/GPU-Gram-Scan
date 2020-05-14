@@ -1,25 +1,20 @@
-# GPU-Gram-Scan
-GPU Accelerated Gram Scan
+# gpuGrahamScan
+A GPU accelerated Graham-Scan implementation. 
 
-implemet merge sort. realized want bitonic
+## Description:
+The vast majority Graham-Scan's run time is can be attributed to sorting since finding the hull after points are sorted is only on O(n) operation.  Thus, we decided to speed up the algorithm by doing the sorting on a GPU, using Bitonic Sort. Although Bitonic Sort has a runtime of O(nlog^2(n)), it requires very little logic and is, therefore, more readily parallelizable than classical CPU sorting algorithms like Merge Sort and QuickSort, which run in O(nlog(n)) [2]. To implement Bitonic Sort on the GPU, we recognized that each thread could be assigned two indices of our array of points.  The only logical operation that is required of these threads is to check whether one point is to the right of another point with respect to our bottom-leftmost point in the array, which is an O(1) operation.  Thus, we could simply use thread and block id’s to map threads to indices of arrays and ensured coherence within blocks by assigning contiguous chunks of indices to thread blocks.
 
-figure out how bitonic works and make sutup of infra forcuda. set up cuda but still confused how will implement on gpu
+## Performance
+![Figure of the performance of our Parallel Graham-Scan algorithm compared to the serial implementation.](GPUPerformance.png)
 
-figure out how to do on gpu with psudocode. get a good idea and now feel like fully understand algo, but do not know yet how to partition sorting network into blocks and threads
+Note that in the figure above, run time was calculated to be the minumum run time of 5 consecutive runs. For large input sizes we see a large speed up over the serial implementation across data types. For small input sizes the serial implementation is faster than the parallel implementation because of the latency of copying data onto the GPU. Therefore, in a generalized algorithm, it would be advantageous to implement control flow between parallel and serial implementations based on this threshold. We also saw that for large input sizes, we were getting 80% of the speed up we would gain from not sorting at all. While that would not be a correct approach, it does give us a sense on the lower bound of runtime for our parallel implementation.
 
-figure that out.  got a good idea also wrote some edge cases I need to look out for like non-power-of-2 and how to handle
 
-implement everything but the kernels, getting blocka nd threads down. realized that way more complicated wifuring out getting block size ask mike for help start to devise new way of partitioning blocks and chunks.
+## Requirements
+- A NVIDIA GPU with support for 1024 threads per block 
+- CUDA compiler/toolkit.
 
-ran into errors with cuda and c++... 
-ran into errors with cuda and c++... also bug fix in n random and error checking
+## References:
+- [1]: Cormen, Thomas H.; Leiserson, Charles E.; Rivest, Ronald L.; Stein, Clifford (2009) [1990]. Introduction to Algorithms (3rd ed.). MIT Press and McGraw-Hill. ISBN 0-262-03384-4. 
 
-let's actually do this now. actually somehow did it I think but now need to test
-
-testing the sort. does not work.  when made k=5 realized all the correct comparisons were happening, but not all the correst swaps, think something wrong with comparator
-
-enlist mike and debug. no clue, made a bunch of debug print statements and still no clue
-
-try som more. realize it is affected by the number of threads per block.
-
-try some more. realized that parameter for num-threads that we were passing to the kernels was actually incorrect, it was array size/2 rounded up but should have been upper_bount / 2
+- [2]: Wikipedia contributors. (2020, May 11). Bitonic sorter. In Wikipedia, The Free Encyclopedia. Retrieved 20:41, May 13, 2020, from https://en.wikipedia.org/w/index.php?title=Bitonic_sorter&oldid=956130960
