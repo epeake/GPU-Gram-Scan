@@ -2,25 +2,48 @@
 #include "gpu_graham_scan.h"
 
 /*
- * see if p1 is "less" than p2
+ * Comparator between two points.  Used to see if p1 is "less" than p2.  This
+ * function assumes that p1 and p2 both have positive x_ and y_ values.
+ *
+ * p1 is "less" than p2 if either of the following conditions hold:
+ *   1) p1 is to the right of p2
+ *   2) p1 and p2 are colinear, but p1 has a smaller squared magnitude than p2.
  */
 template <class Num_Type>
-__device__ bool comparePoints(const gpu_graham_scan::Point<Num_Type> p1,
-                              const gpu_graham_scan::Point<Num_Type> p2) {
+__device__ bool comparePoints(const gpu_graham_scan::Point<Num_Type>& p1,
+                              const gpu_graham_scan::Point<Num_Type>& p2) {
   // cross product of 2 points
   Num_Type x_product = (p1.x_ * p2.y_) - (p2.x_ * p1.y_);
 
+  // right turn
   if (x_product > 0) {
     return true;
   }
+
+  // colinear
   if (x_product == 0) {
+    // square magnitude of each point
     Num_Type sq_mag_p1 = (p1.x_ * p1.x_) + (p1.y_ * p1.y_);
     Num_Type sq_mag_p2 = (p2.x_ * p2.x_) + (p2.y_ * p2.y_);
     return sq_mag_p1 < sq_mag_p2;
   }
+
+  // left turn
   return false;
 }
 
+/*
+ * Takes an array and splits it up into bitonic sub arrays.
+ *
+ * Args:
+ *   n_points: the total number of points
+ *   d_points: our array to be split up
+ *   threads_per_chunk: threads per chunk/sub array (this means that the size of
+ *                      each sub array is threads_per_chunk * 2)
+ *   chunk_len: the length of our sub array.  This could be computed in the
+ *              kernel but it is computed before hand to save additional
+ *              computation
+ */
 template <class Num_Type>
 __global__ void BuildBitonicKernel(size_t n_points,
                                    gpu_graham_scan::Point<Num_Type>* d_points,
@@ -40,6 +63,22 @@ __global__ void BuildBitonicKernel(size_t n_points,
   }
 }
 
+/*
+ * Sorts an array comprised of bitonic subarrays.  We assign a single thread to
+ * each swap location, thus if there are n indicies in our array, we round n to
+ * the next largest power of two if n is not already a power of two, otherwise n
+ * stays the same, then we let the total number of threads be this new number
+ * divided by two
+ *
+ * Args:
+ *   n_points: the total number of points
+ *   d_points: our array to be sorted
+ *   threads_per_chunk: threads per chunk/sub array (this means that the size of
+ *                      each sub array is threads_per_chunk * 2)
+ *   chunk_len: the length of our sub array.  This could be computed in the
+ *              kernel but it is computed before hand to save additional
+ *              computation
+ */
 template <class Num_Type>
 __global__ void BitonicSortKernel(size_t n_points,
                                   gpu_graham_scan::Point<Num_Type>* d_points,
@@ -51,21 +90,21 @@ __global__ void BitonicSortKernel(size_t n_points,
   size_t first = thread_offset + chunk_offset;
   size_t last = first + threads_per_chunk;
   if (last < n_points && comparePoints(d_points[last], d_points[first])) {
-    // printf("sfirst: %lu last: %lu    p1: %d %d  p2: %d %d \n", first, last,
-    //        d_points[first].x_, d_points[first].y_, d_points[last].x_,
-    //        d_points[last].y_);
     gpu_graham_scan::Point<Num_Type> tmp = d_points[last];
     d_points[last] = d_points[first];
     d_points[first] = tmp;
   } else if (last < n_points &&
              !comparePoints(d_points[last], d_points[first])) {
-    // printf("no sfirst: %lu last: %lu    p1: %d %d  p2: %d %d \n", first,
-    // last,
-    //        d_points[first].x_, d_points[first].y_, d_points[last].x_,
-    //        d_points[last].y_);
   }
 }
 
+/*
+ * Runs Bionic sort on an array of Point<Num_Type>
+ *
+ * Args:
+ *   points_arr: our array to be sorted
+ *   n_points: the total number of points
+ */
 template <class Num_Type>
 void gpu_graham_scan::BitonicSortPoints(
     gpu_graham_scan::Point<Num_Type>* points_arr, size_t n_points) {
@@ -123,14 +162,32 @@ void gpu_graham_scan::BitonicSortPoints(
   cudaErrorCheck(cudaFree(d_points));
 }
 
+/*
+ * Template implementations
+ */
+
 template void gpu_graham_scan::BitonicSortPoints(
     gpu_graham_scan::Point<int>* points_arr, size_t n_points);
+
+template void gpu_graham_scan::BitonicSortPoints(
+    gpu_graham_scan::Point<long>* points_arr, size_t n_points);
+
+template void gpu_graham_scan::BitonicSortPoints(
+    gpu_graham_scan::Point<float>* points_arr, size_t n_points);
 
 template void gpu_graham_scan::BitonicSortPoints(
     gpu_graham_scan::Point<double>* points_arr, size_t n_points);
 
 template void __global__
 BuildBitonicKernel(size_t n_points, gpu_graham_scan::Point<int>* d_points,
+                   size_t threads_per_chunk, size_t chunk_len);
+
+template void __global__
+BuildBitonicKernel(size_t n_points, gpu_graham_scan::Point<long>* d_points,
+                   size_t threads_per_chunk, size_t chunk_len);
+
+template void __global__
+BuildBitonicKernel(size_t n_points, gpu_graham_scan::Point<float>* d_points,
                    size_t threads_per_chunk, size_t chunk_len);
 
 template void __global__
@@ -142,11 +199,26 @@ template __global__ void BitonicSortKernel(
     size_t threads_per_chunk, size_t chunk_len);
 
 template __global__ void BitonicSortKernel(
+    size_t n_points, gpu_graham_scan::Point<long>* d_points,
+    size_t threads_per_chunk, size_t chunk_len);
+
+template __global__ void BitonicSortKernel(
+    size_t n_points, gpu_graham_scan::Point<float>* d_points,
+    size_t threads_per_chunk, size_t chunk_len);
+
+template __global__ void BitonicSortKernel(
     size_t n_points, gpu_graham_scan::Point<double>* d_points,
     size_t threads_per_chunk, size_t chunk_len);
 
-template __device__ bool comparePoints(const gpu_graham_scan::Point<int> p1,
-                                       const gpu_graham_scan::Point<int> p2);
+template __device__ bool comparePoints(const gpu_graham_scan::Point<int>& p1,
+                                       const gpu_graham_scan::Point<int>& p2);
 
-template __device__ bool comparePoints(const gpu_graham_scan::Point<double> p1,
-                                       const gpu_graham_scan::Point<double> p2);
+template __device__ bool comparePoints(const gpu_graham_scan::Point<long>& p1,
+                                       const gpu_graham_scan::Point<long>& p2);
+
+template __device__ bool comparePoints(const gpu_graham_scan::Point<float>& p1,
+                                       const gpu_graham_scan::Point<float>& p2);
+
+template __device__ bool comparePoints(
+    const gpu_graham_scan::Point<double>& p1,
+    const gpu_graham_scan::Point<double>& p2);
